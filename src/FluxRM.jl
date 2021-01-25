@@ -1,5 +1,5 @@
 module FluxRM
 
-greet() = print("Hello World!")
+include("api.jl")
 
 end # module
