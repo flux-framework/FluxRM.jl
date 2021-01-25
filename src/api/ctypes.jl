@@ -7,3 +7,4 @@ const Ctime_t = UInt
 const Cclock_t = UInt
 
 const FILE = Cint
+const pid_t = Cint

@@ -618,8 +618,8 @@ function flux_stat_watcher_create(r, path, interval, cb, arg)
     ccall((:flux_stat_watcher_create, libflux_core), Ptr{flux_watcher_t}, (Ptr{flux_reactor_t}, Cstring, Cdouble, flux_watcher_f, Ptr{Cvoid}), r, path, interval, cb, arg)
 end
 
-function flux_stat_watcher_get_rstat(w, stat, prev)
-    ccall((:flux_stat_watcher_get_rstat, libflux_core), Cvoid, (Ptr{flux_watcher_t}, Ptr{stat}, Ptr{stat}), w, stat, prev)
+function flux_stat_watcher_get_rstat(w, curr, prev)
+    ccall((:flux_stat_watcher_get_rstat, libflux_core), Cvoid, (Ptr{flux_watcher_t}, Ptr{stat}, Ptr{stat}), w, curr, prev)
 end
 
 function flux_watcher_create(r, data_size, ops, fn, arg)
@@ -946,13 +946,13 @@ function flux_event_publish_get_seq(f, seq)
     ccall((:flux_event_publish_get_seq, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Cint}), f, seq)
 end
 
-function flux_modname(filename, cb, arg)
-    ccall((:flux_modname, libflux_core), Cstring, (Cstring, Ptr{flux_moderr_f}, Ptr{Cvoid}), filename, cb, arg)
-end
+# function flux_modname(filename, cb, arg)
+#     ccall((:flux_modname, libflux_core), Cstring, (Cstring, Ptr{flux_moderr_f}, Ptr{Cvoid}), filename, cb, arg)
+# end
 
-function flux_modfind(searchpath, modname, cb, arg)
-    ccall((:flux_modfind, libflux_core), Cstring, (Cstring, Cstring, Ptr{flux_moderr_f}, Ptr{Cvoid}), searchpath, modname, cb, arg)
-end
+# function flux_modfind(searchpath, modname, cb, arg)
+#     ccall((:flux_modfind, libflux_core), Cstring, (Cstring, Cstring, Ptr{flux_moderr_f}, Ptr{Cvoid}), searchpath, modname, cb, arg)
+# end
 
 function flux_module_debug_test(h, flag, clear)
     ccall((:flux_module_debug_test, libflux_core), Bool, (Ptr{flux_t}, Cint, Bool), h, flag, clear)
