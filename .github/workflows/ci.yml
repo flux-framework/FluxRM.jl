@@ -1,0 +1,49 @@
+name: CI
+on:
+  push:
+    branches:
+      - master
+    tags: '*'
+  pull_request:
+jobs:
+  CI:
+    name: CI
+    runs-on: ubuntu-latest
+    container:
+      image: fluxrm/flux-core:${{ matrix.flux_version }}
+      options: --user root
+    strategy:
+      fail-fast: false
+      matrix:
+        version:
+          - '1'
+          - '1.5'
+          - '1.6-nightly'
+          - 'nightly'
+        flux_version:
+          - focal
+          - focal-v0.23.1
+        arch:
+          - x64
+    steps:
+      - name: Installing dependencies...
+        run: |
+          apt-get update
+          apt-get install -y git curl
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+      - uses: actions/cache@v1
+        env:
+          cache-name: cache-artifacts
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-test-${{ env.cache-name }}-
+            ${{ runner.os }}-test-
+            ${{ runner.os }}-
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
