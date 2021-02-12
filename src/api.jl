@@ -1,10 +1,6 @@
 module API
 
-# using Flux_jll
-
-# temporary hack
-const libflux_core = "libflux-core"
-
+include(joinpath(@__DIR__, "..", "deps", "deps.jl"))
 using CEnum
 
 include("api/ctypes.jl")
