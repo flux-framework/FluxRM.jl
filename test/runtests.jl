@@ -14,9 +14,6 @@ if !flux_available
     exit()
 end
 
-# Make sure keys exist
-@test success(pipeline(`flux keygen`, stderr=devnull)) || true
-
 function flux_broker(size)
     inp = Pipe()
     out = Pipe()
