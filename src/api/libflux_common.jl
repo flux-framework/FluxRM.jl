@@ -2,13 +2,9 @@
 
 
 # Skipping MacroDefinition: FLUX_MATCH_ANY flux_match_init ( FLUX_MSGTYPE_ANY , FLUX_MATCHTAG_NONE , NULL \#
-)
 # Skipping MacroDefinition: FLUX_MATCH_EVENT flux_match_init ( FLUX_MSGTYPE_EVENT , FLUX_MATCHTAG_NONE , NULL \#
-)
 # Skipping MacroDefinition: FLUX_MATCH_REQUEST flux_match_init ( FLUX_MSGTYPE_REQUEST , FLUX_MATCHTAG_NONE , NULL \#
-)
 # Skipping MacroDefinition: FLUX_MATCH_RESPONSE flux_match_init ( FLUX_MSGTYPE_RESPONSE , FLUX_MATCHTAG_NONE , NULL \#
-)
 
 const FLUX_OPT_TESTING_USERID = "flux::testing_userid"
 const FLUX_OPT_TESTING_ROLEMASK = "flux::testing_rolemask"
