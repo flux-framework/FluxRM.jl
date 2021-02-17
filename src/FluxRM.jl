@@ -2,7 +2,7 @@ module FluxRM
 
 include("api.jl")
 
-export Broker
+export Flux
 
 function version()
     major = Ref{Cint}()
@@ -13,54 +13,54 @@ function version()
     Base.VersionNumber(major[], minor[], patch[])
 end
 
-mutable struct Broker
+mutable struct Flux
     handle::Ptr{API.flux_t}
 
-    function Broker(handle::Ptr{API.flux_t})
+    function Flux(handle::Ptr{API.flux_t})
         @assert handle != C_NULL
         this = new(handle)
-        finalizer(this) do broker
-            API.flux_close(broker)
+        finalizer(this) do flux
+            API.flux_close(flux)
         end
         return this
     end
 end
-Base.unsafe_convert(::Type{Ptr{API.flux_t}}, broker::Broker) = broker.handle
+Base.unsafe_convert(::Type{Ptr{API.flux_t}}, flux::Flux) = flux.handle
 # flux_fatal_set
 
-function Broker(uri = nothing; flags = 0)
+function Flux(uri = nothing; flags = 0)
     if uri === nothing
         uri = C_NULL
     end
     handle = API.flux_open(uri, flags)
     Libc.systemerror("flux_open", handle == C_NULL)
-    Broker(handle)
+    Flux(handle)
 end
 
-function Base.copy(broker::Broker)
-    handle = API.flux_clone(broker)
-    Broker(handle)
+function Base.copy(flux::Flux)
+    handle = API.flux_clone(flux)
+    Flux(handle)
 end
 
-function rank(broker::Broker)
+function rank(flux::Flux)
     r_rank = Ref{UInt32}()
-    API.flux_get_rank(broker, r_rank)
+    API.flux_get_rank(flux, r_rank)
     r_rank[]
 end
 
-function size(broker::Broker)
+function size(flux::Flux)
     r_size = Ref{UInt32}()
-    API.flux_get_rank(broker, r_size)
+    API.flux_get_rank(flux, r_size)
     r_size[]
 end
 
-function Base.getindex(broker::Broker, key::String)
-    str = API.flux_attr_get(broker, key)
+function Base.getindex(flux::Flux, key::String)
+    str = API.flux_attr_get(flux, key)
     Base.unsafe_string(str)
 end
 
-function Base.setindex!(broker::Broker, value::String, key::String)
-    err = API.flux_attr_set(broker, key, value)
+function Base.setindex!(flux::Flux, value::String, key::String)
+    err = API.flux_attr_set(flux, key, value)
     Libc.systemerror("flux_attr_set", err == -1)
     value
 end

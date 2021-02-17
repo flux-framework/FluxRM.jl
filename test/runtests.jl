@@ -4,7 +4,7 @@ using Test
 @test FluxRM.version() >= v"0.1.0"
 
 @testset "Outside Flux sessions" begin
-    @test_throws SystemError Broker()
+    @test_throws SystemError Flux()
 end
 
 flux_available = success(`flux env`)
@@ -14,7 +14,7 @@ if !flux_available
     exit()
 end
 
-function flux_broker(size)
+function start_flux(size)
     inp = Pipe()
     out = Pipe()
 
@@ -28,8 +28,8 @@ function flux_broker(size)
 end
 
 @testset "Basic" begin
-    uri, fluxp = flux_broker(4)
-    flux = Broker(uri)
+    uri, fluxp = start_flux(4)
+    flux = Flux(uri)
 
     @test parse(Int, flux["size"]) == 4
     @test_throws SystemError flux["size"] = "5"
