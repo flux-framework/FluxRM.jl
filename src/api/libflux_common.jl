@@ -1,6 +1,40 @@
 # Automatically generated using Clang.jl
 
 
+# Skipping MacroDefinition: FLUX_MATCH_ANY flux_match_init ( FLUX_MSGTYPE_ANY , FLUX_MATCHTAG_NONE , NULL \#
+)
+# Skipping MacroDefinition: FLUX_MATCH_EVENT flux_match_init ( FLUX_MSGTYPE_EVENT , FLUX_MATCHTAG_NONE , NULL \#
+)
+# Skipping MacroDefinition: FLUX_MATCH_REQUEST flux_match_init ( FLUX_MSGTYPE_REQUEST , FLUX_MATCHTAG_NONE , NULL \#
+)
+# Skipping MacroDefinition: FLUX_MATCH_RESPONSE flux_match_init ( FLUX_MSGTYPE_RESPONSE , FLUX_MATCHTAG_NONE , NULL \#
+)
+
+const FLUX_OPT_TESTING_USERID = "flux::testing_userid"
+const FLUX_OPT_TESTING_ROLEMASK = "flux::testing_rolemask"
+
+# Skipping MacroDefinition: FLUX_FATAL ( h ) do { flux_fatal_error ( ( h ) , __FUNCTION__ , ( strerror ( errno ) ) ) ; \
+#} while ( 0 )
+# Skipping MacroDefinition: FLUX_MSGHANDLER_TABLE_END { 0 , NULL , NULL , 0 }
+
+const FLUX_MAX_LOGBUF = 2048
+
+# Skipping MacroDefinition: FLUX_LOG_ERROR ( h ) ( void ) flux_log_error ( ( h ) , "%s::%d[%s]" , __FILE__ , __LINE__ , __FUNCTION__ )
+# Skipping MacroDefinition: future_strerror ( __f , __errno ) ( flux_future_has_error ( ( __f ) ) ? flux_future_error_string ( ( __f ) ) : flux_strerror ( ( __errno ) ) )
+# Skipping MacroDefinition: MOD_NAME ( x ) const char * mod_name = x
+
+const FLUX_CORE_VERSION_STRING = "0.23.0"
+const FLUX_CORE_VERSION_MAJOR = 0
+const FLUX_CORE_VERSION_MINOR = 23
+const FLUX_CORE_VERSION_PATCH = 0
+
+# Skipping MacroDefinition: FLUX_CORE_VERSION_HEX ( ( FLUX_CORE_VERSION_MAJOR << 16 ) | ( FLUX_CORE_VERSION_MINOR << 8 ) | ( FLUX_CORE_VERSION_PATCH << 0 ) )
+
+const KVS_PRIMARY_NAMESPACE = "primary"
+const FLUX_JOB_NR_STATES = 7
+
+# Skipping MacroDefinition: flux_subprocess_destroy ( x ) flux_subprocess_unref ( x )
+
 const flux_free_f = Ptr{Cvoid}
 const flux_msg = Cvoid
 const flux_msg_t = flux_msg
@@ -138,7 +172,44 @@ end
     FLUX_KVS_WATCH_APPEND = 256
 end
 
+@cenum job_submit_flags::UInt32 begin
+    FLUX_JOB_PRE_SIGNED = 1
+    FLUX_JOB_DEBUG = 2
+    FLUX_JOB_WAITABLE = 4
+end
 
+@cenum job_urgency::UInt32 begin
+    FLUX_JOB_URGENCY_MIN = 0
+    FLUX_JOB_URGENCY_HOLD = 0
+    FLUX_JOB_URGENCY_DEFAULT = 16
+    FLUX_JOB_URGENCY_MAX = 31
+    FLUX_JOB_URGENCY_EXPEDITE = 31
+end
+
+@cenum job_queue_priority::UInt32 begin
+    FLUX_JOB_PRIORITY_MIN = 0
+    FLUX_JOB_PRIORITY_MAX = 4294967295
+end
+
+@cenum flux_job_state_t::UInt32 begin
+    FLUX_JOB_STATE_NEW = 1
+    FLUX_JOB_STATE_DEPEND = 2
+    FLUX_JOB_STATE_PRIORITY = 4
+    FLUX_JOB_STATE_SCHED = 8
+    FLUX_JOB_STATE_RUN = 16
+    FLUX_JOB_STATE_CLEANUP = 32
+    FLUX_JOB_STATE_INACTIVE = 64
+end
+
+@cenum flux_job_result_t::UInt32 begin
+    FLUX_JOB_RESULT_COMPLETED = 1
+    FLUX_JOB_RESULT_FAILED = 2
+    FLUX_JOB_RESULT_CANCELED = 4
+    FLUX_JOB_RESULT_TIMEOUT = 8
+end
+
+
+const flux_jobid_t = UInt64
 const flux_command = Cvoid
 const flux_cmd_t = flux_command
 const flux_subprocess = Cvoid
@@ -174,34 +245,3 @@ struct flux_subprocess_hooks_t
     post_fork::flux_subprocess_hook_f
     post_fork_arg::Ptr{Cvoid}
 end
-
-@cenum job_submit_flags::UInt32 begin
-    FLUX_JOB_PRE_SIGNED = 1
-    FLUX_JOB_DEBUG = 2
-    FLUX_JOB_WAITABLE = 4
-end
-
-@cenum job_priority::UInt32 begin
-    FLUX_JOB_PRIORITY_MIN = 0
-    FLUX_JOB_PRIORITY_DEFAULT = 16
-    FLUX_JOB_PRIORITY_MAX = 31
-end
-
-@cenum flux_job_state_t::UInt32 begin
-    FLUX_JOB_NEW = 1
-    FLUX_JOB_DEPEND = 2
-    FLUX_JOB_SCHED = 4
-    FLUX_JOB_RUN = 8
-    FLUX_JOB_CLEANUP = 16
-    FLUX_JOB_INACTIVE = 32
-end
-
-@cenum flux_job_result_t::UInt32 begin
-    FLUX_JOB_RESULT_COMPLETED = 1
-    FLUX_JOB_RESULT_FAILED = 2
-    FLUX_JOB_RESULT_CANCELLED = 4
-    FLUX_JOB_RESULT_TIMEOUT = 8
-end
-
-
-const flux_jobid_t = UInt64
