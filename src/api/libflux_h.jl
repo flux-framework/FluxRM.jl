@@ -1,4 +1,4 @@
-# Julia wrapper for header: _core_preproc.h
+# Julia wrapper for header: core.h
 # Automatically generated using Clang.jl
 
 
@@ -56,6 +56,10 @@ end
 
 function flux_msg_sendzsock(dest, msg)
     ccall((:flux_msg_sendzsock, libflux_core), Cint, (Ptr{Cvoid}, Ptr{flux_msg_t}), dest, msg)
+end
+
+function flux_msg_sendzsock_ex(dest, msg, nonblock)
+    ccall((:flux_msg_sendzsock_ex, libflux_core), Cint, (Ptr{Cvoid}, Ptr{flux_msg_t}, Bool), dest, msg, nonblock)
 end
 
 function flux_msg_recvzsock(dest)
@@ -618,9 +622,9 @@ function flux_stat_watcher_create(r, path, interval, cb, arg)
     ccall((:flux_stat_watcher_create, libflux_core), Ptr{flux_watcher_t}, (Ptr{flux_reactor_t}, Cstring, Cdouble, flux_watcher_f, Ptr{Cvoid}), r, path, interval, cb, arg)
 end
 
-function flux_stat_watcher_get_rstat(w, curr, prev)
-    ccall((:flux_stat_watcher_get_rstat, libflux_core), Cvoid, (Ptr{flux_watcher_t}, Ptr{stat}, Ptr{stat}), w, curr, prev)
-end
+#function flux_stat_watcher_get_rstat(w, stat, prev)
+#    ccall((:flux_stat_watcher_get_rstat, libflux_core), Cvoid, (Ptr{flux_watcher_t}, Ptr{stat}, Ptr{stat}), w, stat, prev)
+#end
 
 function flux_watcher_create(r, data_size, ops, fn, arg)
     ccall((:flux_watcher_create, libflux_core), Ptr{flux_watcher_t}, (Ptr{flux_reactor_t}, Csize_t, Ptr{flux_watcher_ops}, flux_watcher_f, Ptr{Cvoid}), r, data_size, ops, fn, arg)
@@ -752,14 +756,6 @@ end
 
 function flux_log_set_redirect(h, fun, arg)
     ccall((:flux_log_set_redirect, libflux_core), Cvoid, (Ptr{flux_t}, flux_log_f, Ptr{Cvoid}), h, fun, arg)
-end
-
-function flux_dmesg(h, flags, fun, arg)
-    ccall((:flux_dmesg, libflux_core), Cint, (Ptr{flux_t}, Cint, flux_log_f, Ptr{Cvoid}), h, flags, fun, arg)
-end
-
-function flux_log_fprint(buf, len, arg)
-    ccall((:flux_log_fprint, libflux_core), Cvoid, (Cstring, Cint, Ptr{Cvoid}), buf, len, arg)
 end
 
 function flux_strerror(errnum)
@@ -1070,6 +1066,14 @@ function flux_plugin_destroy(p)
     ccall((:flux_plugin_destroy, libflux_core), Cvoid, (Ptr{flux_plugin_t},), p)
 end
 
+function flux_plugin_get_flags(p)
+    ccall((:flux_plugin_get_flags, libflux_core), Cint, (Ptr{flux_plugin_t},), p)
+end
+
+function flux_plugin_set_flags(p, flags)
+    ccall((:flux_plugin_set_flags, libflux_core), Cint, (Ptr{flux_plugin_t}, Cint), p, flags)
+end
+
 function flux_plugin_strerror(p)
     ccall((:flux_plugin_strerror, libflux_core), Cstring, (Ptr{flux_plugin_t},), p)
 end
@@ -1342,6 +1346,102 @@ function flux_kvs_dropcache(h)
     ccall((:flux_kvs_dropcache, libflux_core), Cint, (Ptr{flux_t},), h)
 end
 
+function flux_job_id_parse(s, id)
+    ccall((:flux_job_id_parse, libflux_core), Cint, (Cstring, Ptr{flux_jobid_t}), s, id)
+end
+
+function flux_job_id_encode(id, type, buf, bufsz)
+    ccall((:flux_job_id_encode, libflux_core), Cint, (flux_jobid_t, Cstring, Cstring, Csize_t), id, type, buf, bufsz)
+end
+
+function flux_job_statetostr(state, single_char)
+    ccall((:flux_job_statetostr, libflux_core), Cstring, (flux_job_state_t, Bool), state, single_char)
+end
+
+function flux_job_strtostate(s, state)
+    ccall((:flux_job_strtostate, libflux_core), Cint, (Cstring, Ptr{flux_job_state_t}), s, state)
+end
+
+function flux_job_resulttostr(result, abbrev)
+    ccall((:flux_job_resulttostr, libflux_core), Cstring, (flux_job_result_t, Bool), result, abbrev)
+end
+
+function flux_job_strtoresult(s, result)
+    ccall((:flux_job_strtoresult, libflux_core), Cint, (Cstring, Ptr{flux_job_result_t}), s, result)
+end
+
+function flux_job_submit(h, jobspec, urgency, flags)
+    ccall((:flux_job_submit, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Cstring, Cint, Cint), h, jobspec, urgency, flags)
+end
+
+function flux_job_submit_get_id(f, id)
+    ccall((:flux_job_submit_get_id, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{flux_jobid_t}), f, id)
+end
+
+function flux_job_wait(h, id)
+    ccall((:flux_job_wait, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t), h, id)
+end
+
+function flux_job_wait_get_status(f, success, errstr)
+    ccall((:flux_job_wait_get_status, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Bool}, Ptr{Cstring}), f, success, errstr)
+end
+
+function flux_job_wait_get_id(f, id)
+    ccall((:flux_job_wait_get_id, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{flux_jobid_t}), f, id)
+end
+
+function flux_job_list(h, max_entries, json_str, userid, states)
+    ccall((:flux_job_list, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Cint, Cstring, UInt32, Cint), h, max_entries, json_str, userid, states)
+end
+
+function flux_job_list_inactive(h, max_entries, since, json_str)
+    ccall((:flux_job_list_inactive, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Cint, Cdouble, Cstring), h, max_entries, since, json_str)
+end
+
+function flux_job_list_id(h, id, json_str)
+    ccall((:flux_job_list_id, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring), h, id, json_str)
+end
+
+function flux_job_raise(h, id, type, severity, note)
+    ccall((:flux_job_raise, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring, Cint, Cstring), h, id, type, severity, note)
+end
+
+function flux_job_cancel(h, id, reason)
+    ccall((:flux_job_cancel, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring), h, id, reason)
+end
+
+function flux_job_kill(h, id, signum)
+    ccall((:flux_job_kill, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cint), h, id, signum)
+end
+
+function flux_job_set_urgency(h, id, urgency)
+    ccall((:flux_job_set_urgency, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cint), h, id, urgency)
+end
+
+function flux_job_kvs_key(buf, bufsz, id, key)
+    ccall((:flux_job_kvs_key, libflux_core), Cint, (Cstring, Cint, flux_jobid_t, Cstring), buf, bufsz, id, key)
+end
+
+function flux_job_kvs_guest_key(buf, bufsz, id, key)
+    ccall((:flux_job_kvs_guest_key, libflux_core), Cint, (Cstring, Cint, flux_jobid_t, Cstring), buf, bufsz, id, key)
+end
+
+function flux_job_kvs_namespace(buf, bufsz, id)
+    ccall((:flux_job_kvs_namespace, libflux_core), Cint, (Cstring, Cint, flux_jobid_t), buf, bufsz, id)
+end
+
+function flux_job_event_watch(h, id, path, flags)
+    ccall((:flux_job_event_watch, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring, Cint), h, id, path, flags)
+end
+
+function flux_job_event_watch_get(f, event)
+    ccall((:flux_job_event_watch_get, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Cstring}), f, event)
+end
+
+function flux_job_event_watch_cancel(f)
+    ccall((:flux_job_event_watch_cancel, libflux_core), Cint, (Ptr{flux_future_t},), f)
+end
+
 function flux_subprocess_server_start(h, prefix, local_uri, rank)
     ccall((:flux_subprocess_server_start, libflux_core), Ptr{flux_subprocess_server_t}, (Ptr{flux_t}, Cstring, Cstring, UInt32), h, prefix, local_uri, rank)
 end
@@ -1536,112 +1636,4 @@ end
 
 function flux_subprocess_aux_get(p, name)
     ccall((:flux_subprocess_aux_get, libflux_core), Ptr{Cvoid}, (Ptr{flux_subprocess_t}, Cstring), p, name)
-end
-
-function flux_job_id_parse(s, id)
-    ccall((:flux_job_id_parse, libflux_core), Cint, (Cstring, Ptr{flux_jobid_t}), s, id)
-end
-
-function flux_job_id_encode(id, type, buf, bufsz)
-    ccall((:flux_job_id_encode, libflux_core), Cint, (flux_jobid_t, Cstring, Cstring, Csize_t), id, type, buf, bufsz)
-end
-
-function flux_job_statetostr(state, single_char)
-    ccall((:flux_job_statetostr, libflux_core), Cstring, (flux_job_state_t, Bool), state, single_char)
-end
-
-function flux_job_strtostate(s, state)
-    ccall((:flux_job_strtostate, libflux_core), Cint, (Cstring, Ptr{flux_job_state_t}), s, state)
-end
-
-function flux_job_resulttostr(result, abbrev)
-    ccall((:flux_job_resulttostr, libflux_core), Cstring, (flux_job_result_t, Bool), result, abbrev)
-end
-
-function flux_job_strtoresult(s, result)
-    ccall((:flux_job_strtoresult, libflux_core), Cint, (Cstring, Ptr{flux_job_result_t}), s, result)
-end
-
-function flux_job_submit(h, jobspec, priority, flags)
-    ccall((:flux_job_submit, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Cstring, Cint, Cint), h, jobspec, priority, flags)
-end
-
-function flux_job_submit_get_id(f, id)
-    ccall((:flux_job_submit_get_id, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{flux_jobid_t}), f, id)
-end
-
-function flux_job_wait(h, id)
-    ccall((:flux_job_wait, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t), h, id)
-end
-
-function flux_job_wait_get_status(f, success, errstr)
-    ccall((:flux_job_wait_get_status, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Bool}, Ptr{Cstring}), f, success, errstr)
-end
-
-function flux_job_wait_get_id(f, id)
-    ccall((:flux_job_wait_get_id, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{flux_jobid_t}), f, id)
-end
-
-function flux_job_list(h, max_entries, json_str, userid, states)
-    ccall((:flux_job_list, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Cint, Cstring, UInt32, Cint), h, max_entries, json_str, userid, states)
-end
-
-function flux_job_list_inactive(h, max_entries, since, json_str)
-    ccall((:flux_job_list_inactive, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Cint, Cdouble, Cstring), h, max_entries, since, json_str)
-end
-
-function flux_job_list_id(h, id, json_str)
-    ccall((:flux_job_list_id, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring), h, id, json_str)
-end
-
-function flux_job_raise(h, id, type, severity, note)
-    ccall((:flux_job_raise, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring, Cint, Cstring), h, id, type, severity, note)
-end
-
-function flux_job_cancel(h, id, reason)
-    ccall((:flux_job_cancel, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring), h, id, reason)
-end
-
-function flux_job_kill(h, id, signum)
-    ccall((:flux_job_kill, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cint), h, id, signum)
-end
-
-function flux_job_set_priority(h, id, priority)
-    ccall((:flux_job_set_priority, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cint), h, id, priority)
-end
-
-function flux_job_kvs_key(buf, bufsz, id, key)
-    ccall((:flux_job_kvs_key, libflux_core), Cint, (Cstring, Cint, flux_jobid_t, Cstring), buf, bufsz, id, key)
-end
-
-function flux_job_kvs_guest_key(buf, bufsz, id, key)
-    ccall((:flux_job_kvs_guest_key, libflux_core), Cint, (Cstring, Cint, flux_jobid_t, Cstring), buf, bufsz, id, key)
-end
-
-function flux_job_kvs_namespace(buf, bufsz, id)
-    ccall((:flux_job_kvs_namespace, libflux_core), Cint, (Cstring, Cint, flux_jobid_t), buf, bufsz, id)
-end
-
-function flux_job_event_watch(h, id, path, flags)
-    ccall((:flux_job_event_watch, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cstring, Cint), h, id, path, flags)
-end
-
-function flux_job_event_watch_get(f, event)
-    ccall((:flux_job_event_watch_get, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Cstring}), f, event)
-end
-
-function flux_job_event_watch_cancel(f)
-    ccall((:flux_job_event_watch_cancel, libflux_core), Cint, (Ptr{flux_future_t},), f)
-end
-
-function MPIR_Breakpoint()
-    ccall((:MPIR_Breakpoint, libflux_core), Cvoid, ())
-end
-
-function get_mpir_being_debugged()
-    ccall((:get_mpir_being_debugged, libflux_core), Cint, ())
-end
-
-function set_mpir_being_debugged(v)
-    ccall((:set_mpir_being_debugged, libflux_core), Cvoid, (Cint,), v)
 end
