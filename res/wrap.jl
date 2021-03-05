@@ -9,7 +9,7 @@ isdir(header_dir) || error("$header_dir does not exist")
 
 const FLUX_INCLUDE = normpath(header_dir)
 const FLUX_DIR = joinpath(FLUX_INCLUDE, "flux")
-const FLUX_HEADERS = [joinpath(FLUX_DIR, header) for header in readdir(FLUX_DIR)]
+const FLUX_HEADERS = [joinpath(FLUX_DIR, header) for header in ["core.h"]]
 
 args = ["-I$FLUX_INCLUDE"]
 
