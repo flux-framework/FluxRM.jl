@@ -9,7 +9,7 @@ Use [`Revise.jl`](https://github.com/timholy/Revise.jl) to interactivly edit the
 
 ```
 spack env create flux
-spack activate flux # Choose the right operation for your shell
+spack env activate flux # Choose the right operation for your shell
 
 spack install flux-core
 spack concretize
