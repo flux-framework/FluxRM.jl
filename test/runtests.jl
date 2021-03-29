@@ -49,18 +49,24 @@ end
 
         @test_throws SystemError FluxRM.lookup(kvs, "test")
 
-        FluxRM.transaction(kvs) do txn
+        # Test fence transaction
+        FluxRM.transaction(kvs, "fence", 1) do txn
             FluxRM.put!(txn, "test", "value")
-            FluxRM.fence(txn, "fence", 1)
         end
-
         @test FluxRM.lookup(kvs, "test") == "value"
+
         FluxRM.transaction(kvs) do txn
             FluxRM.put!(txn, "test", nothing)
-            FluxRM.commit(txn)
         end
-
         @test FluxRM.lookup(kvs, "test") === nothing
+
+        FluxRM.transaction(kvs) do txn
+            FluxRM.mkdir!(txn, "testdir")
+            FluxRM.put!(txn, "testdir.test", "value")
+            FluxRM.unlink!(txn, "test")
+            FluxRM.symlink!(txn, "test", "testdir.test")
+        end
+        @test FluxRM.lookup(kvs, "test") == "value"
     end
 end
 

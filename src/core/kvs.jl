@@ -60,16 +60,13 @@ end
 function transaction(f, kvs::KVS)
     txn = Transaction(kvs)
     f(txn)
-end
-
-function commit(txn::Transaction)
-    kvs = txn.kvs
     future = commit(kvs.flux, txn, C_NULL)
     API.flux_future_get(future, C_NULL)
 end
 
-function fence(txn::Transaction, name, nprocs)
-    kvs = txn.kvs
+function transaction(f, kvs::KVS, name, nprocs)
+    txn = Transaction(kvs)
+    f(txn)
     future = fence(kvs.flux, txn, name, nprocs, C_NULL)
     API.flux_future_get(future, C_NULL)
 end
@@ -83,4 +80,19 @@ function put!(txn::Transaction, key, value)
 
     err = API.flux_kvs_txn_put(txn, 0, key, value)
     Libc.systemerror("flux_kvs_txn_put", err == -1)
+end
+
+function mkdir!(txn::Transaction, key)
+    err = API.flux_kvs_txn_mkdir(txn, 0, key)
+    Libc.systemerror("flux_kvs_txn_mkdir", err == -1)
+end
+
+function unlink!(txn::Transaction, key)
+    err = API.flux_kvs_txn_unlink(txn, 0, key)
+    Libc.systemerror("flux_kvs_txn_unlink", err == -1)
+end
+
+function symlink!(txn::Transaction, key, target, ns=C_NULL)
+    err = API.flux_kvs_txn_symlink(txn, 0, key, ns, target)
+    Libc.systemerror("flux_kvs_txn_unlink", err == -1)
 end
