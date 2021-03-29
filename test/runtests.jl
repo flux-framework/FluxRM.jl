@@ -49,11 +49,17 @@ end
 
         @test_throws SystemError FluxRM.lookup(kvs, "test")
 
-        FluxRM.put!(kvs, "test", "value")
-        FluxRM.fence(kvs, "fence", 1)
+        FluxRM.transaction(kvs) do txn
+            FluxRM.put!(txn, "test", "value")
+            FluxRM.fence(txn, "fence", 1)
+        end
+
         @test FluxRM.lookup(kvs, "test") == "value"
-        FluxRM.put!(kvs, "test", nothing)
-        FluxRM.commit(kvs)
+        FluxRM.transaction(kvs) do txn
+            FluxRM.put!(txn, "test", nothing)
+            FluxRM.commit(txn)
+        end
+
         @test FluxRM.lookup(kvs, "test") === nothing
     end
 end
