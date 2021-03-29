@@ -61,14 +61,16 @@ function transaction(f, kvs::KVS)
     txn = Transaction(kvs)
     f(txn)
     future = commit(kvs.flux, txn, C_NULL)
-    API.flux_future_get(future, C_NULL)
+    err = API.flux_future_get(future, C_NULL)
+    Libc.systemerror("flux_future_get", err == -1)
 end
 
 function transaction(f, kvs::KVS, name, nprocs)
     txn = Transaction(kvs)
     f(txn)
     future = fence(kvs.flux, txn, name, nprocs, C_NULL)
-    API.flux_future_get(future, C_NULL)
+    err = API.flux_future_get(future, C_NULL)
+    Libc.systemerror("flux_future_get", err == -1)
 end
 
 function put!(txn::Transaction, key, value)
