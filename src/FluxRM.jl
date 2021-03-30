@@ -1,5 +1,7 @@
 module FluxRM
 
+using JSON3
+
 include("api.jl")
 
 export Flux
@@ -64,5 +66,8 @@ function Base.setindex!(flux::Flux, value::String, key::String)
     Libc.systemerror("flux_attr_set", err == -1)
     value
 end
+
+include("core/future.jl")
+include("core/kvs.jl")
 
 end # module
