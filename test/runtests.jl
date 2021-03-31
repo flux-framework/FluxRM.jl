@@ -43,6 +43,8 @@ end
     end
 end
 
+include("jobspec.jl")
+
 @testset "KVS" begin
     with_flux(1) do flux
         kvs = FluxRM.KVS(flux)

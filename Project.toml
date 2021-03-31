@@ -6,7 +6,9 @@ version = "0.1.0"
 CEnum = "fa961155-64e5-5f13-b03f-caf6b980ea82"
 JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 
 [compat]
 CEnum = "0.4"
 JSON3 = "1.7"
+StructTypes = "1.5"
