@@ -69,6 +69,8 @@ end
 
 include("core/future.jl")
 include("core/kvs.jl")
+
 include("jobspec.jl")
+include("core/job.jl")
 
 end # module

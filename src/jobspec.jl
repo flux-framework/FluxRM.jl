@@ -124,6 +124,10 @@ function validate(task::Task, version)
     return validate(task.count, version)
 end
 
+function Task(cmd::Cmd, slot, count)
+    Task(cmd.exec, slot, count)
+end
+
 ###
 # Attributes
 ###
