@@ -2,6 +2,7 @@ mutable struct Future
     handle::Ptr{API.flux_future_t}
     refs::IdDict{Any, Nothing}
     function Future(handle)
+        @assert handle != C_NULL
         this = new(handle, IdDict{Any, Nothing}())
         finalizer(this) do future
             API.flux_future_destroy(future.handle)

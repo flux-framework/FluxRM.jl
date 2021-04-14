@@ -38,6 +38,7 @@ end
 
 @testset "Basic" begin
     with_flux(4) do flux
+        @test FluxRM.size(flux) == 4
         @test parse(Int, flux["size"]) == 4
         @test_throws SystemError flux["size"] = "5"
     end
