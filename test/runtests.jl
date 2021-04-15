@@ -74,9 +74,7 @@ include("jobspec.jl")
 end
 
 @testset "Job launch" begin
-    slot = Slot(label="slot", count=2, with=[CPUCore(1)])
-    task = JobSpec.Task(`sleep 1`, "slot", Count(total=2))
-    jobspec = JobspecV1([slot], [task], Attributes(system=System(duration=180)))
+    jobspec = JobSpec.from_command(`sleep 1`, num_tasks=2)
 
     with_flux(1) do flux
         jobsub = FluxRM.submit(flux, jobspec)
@@ -84,15 +82,14 @@ end
         wait(job)
     end
 
-    slot = Slot(label="slot", count=2, with=[CPUCore(1)])
-    task = JobSpec.Task(`sleep inf`, "slot", Count(total=2))
-    jobspec = JobspecV1([slot], [task], Attributes(system=System(duration=180)))
+    jobspec = JobSpec.from_command(`sleep inf`, num_tasks=2)
 
     # with_flux(1) do flux
     #     jobsub = FluxRM.submit(flux, jobspec)
     #     job = FluxRM.Job(jobsub)
     #     kill(job) # fails with Invalid argument
     # end
+
     with_flux(1) do flux
         jobsub = FluxRM.submit(flux, jobspec)
         job = FluxRM.Job(jobsub)

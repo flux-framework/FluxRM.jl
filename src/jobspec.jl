@@ -178,4 +178,44 @@ function validate(jobspec::Jobspec, version)
     return isvalid
 end
 
+function from_command(command; num_tasks::Int = 1, cores_per_task::Int = 1,
+                               gpus_per_task::Union{Nothing, Int} = nothing, num_nodes::Union{Nothing, Int} = nothing)
+    @assert num_tasks >= 1 
+    @assert cores_per_task >= 1
+    if gpus_per_task !== nothing
+        @assert gpus_per_task >= 1
+    end
+    if num_nodes !== nothing
+        @assert num_nodes >= 1
+        @assert num_nodes <= num_tasks
+    end
+
+    children = IntraNodeResource[CPUCore(count=cores_per_task)]
+
+    if gpus_per_task !== nothing
+        push!(children, GPU(count=gpus_per_task))
+    end
+
+    if num_nodes === nothing
+        count = Count(per_slot=1)
+        slot = Slot(label="task", count=num_tasks, with=children)
+        resource = slot
+    else
+        num_slots = ceil(Int, num_tasks / num_nodes)
+        if num_tasks % num_nodes != 0
+            count = Count(total=num_tasks)
+        else
+            count = Count(per_slot=1)
+        end
+        slot = Slot(label="task", count=num_slots, with=children)
+        resource = Node(count=num_nodes, [slot])
+    end
+
+    tasks = [Task(command, "task", count)]
+    resources = [resource]
+    attrs = Attributes(system=System(duration=0))
+
+    return JobspecV1(resources, tasks, attrs)
+end
+
 end # module
