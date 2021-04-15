@@ -52,7 +52,7 @@ end
 
 function size(flux::Flux)
     r_size = Ref{UInt32}()
-    API.flux_get_rank(flux, r_size)
+    API.flux_get_size(flux, r_size)
     r_size[]
 end
 
