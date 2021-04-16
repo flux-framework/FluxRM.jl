@@ -104,3 +104,32 @@ end
         @test_throws ErrorException wait(job)
     end
 end
+
+@testset "from_batch_command launch" begin
+    @test_throws AssertionError JobSpec.from_batch_command("sleep 0", "missing shebang")
+
+    script = """
+    #!/bin/sh
+
+    sleep 0
+    """
+    jobspec = JobSpec.from_batch_command(script, "nested_sleep")
+
+    with_flux(1) do flux
+        jobsub = FluxRM.submit(flux, jobspec)
+        job = FluxRM.Job(jobsub)
+        @test job.id > 0
+        wait(job)
+    end
+end
+
+@testset "from_nest_command launch" begin
+    jobspec = JobSpec.from_nest_command(`sleep 0`)
+
+    with_flux(1) do flux
+        jobsub = FluxRM.submit(flux, jobspec)
+        job = FluxRM.Job(jobsub)
+        @test job.id > 0
+        wait(job)
+    end
+end
