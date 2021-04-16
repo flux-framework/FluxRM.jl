@@ -3,8 +3,14 @@ struct JobSubmission
     fut::Future
 end
 
-function submit(flux::Flux, jobspec::JobSpec.Jobspec, urgency=16)
-    handle = API.flux_job_submit(flux, JSON3.write(jobspec), urgency, FluxRM.API.FLUX_JOB_DEBUG | FluxRM.API.FLUX_JOB_WAITABLE #= | FluxRM.API.FLUX_JOB_PRE_SIGNED=#)
+function submit(flux::Flux, jobspec::JobSpec.Jobspec; urgency=16, debug=false)
+    flags = FluxRM.API.FLUX_JOB_WAITABLE
+    if debug
+        flags |= FluxRM.API.FLUX_JOB_DEBUG
+    end
+    # flags |= FluxRM.API.FLUX_JOB_PRE_SIGNED
+
+    handle = API.flux_job_submit(flux, JSON3.write(jobspec), urgency, flags)
     Libc.systemerror("flux_job_submit", handle == C_NULL)
     JobSubmission(flux, Future(handle))
 end
