@@ -3,43 +3,33 @@ using Test
 
 @test FluxRM.version() >= v"0.1.0"
 
-@testset "Outside Flux sessions" begin
-    @test_throws SystemError Flux()
-end
+if !haskey(ENV, "FLUX_URI")
+    @testset "Outside Flux sessions" begin
+        @test_throws SystemError Flux()
+    end
 
-flux_available = success(`flux env`)
+    flux_available = try
+        success(`flux env`)
+    catch
+        false
+    end
 
-if !flux_available
-    @error "flux-core is not installed, skipping further tests"
+    if !flux_available
+        @error "flux-core is not installed, skipping further tests"
+        exit()
+    end
+
+    @info "relaunching under Flux"
+    current_file = @__FILE__ # bug in 1.5 can't be directly interpolated
+    jlcmd = `$(Base.julia_cmd()) $(current_file)`
+    cmd = `flux start -o,-Slog-forward-level=7 --size=$(Sys.CPU_THREADS) -- $jlcmd`
+    @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
     exit()
 end
 
-function start_flux(size)
-    inp = Pipe()
-    out = Pipe()
-
-    process = run(pipeline(`flux start --size=$size -- bash`, stdin=inp, stdout=out, stderr=stderr), wait=false)
-    close(out.in)
-
-    t = @async write(inp, "printenv FLUX_URI\n")
-    uri = fetch(@async readline(out))
-
-    return uri, process
-end
-function with_flux(f, size)
-    uri, fluxp = start_flux(size)
-    try
-        flux = Flux(uri)
-        f(flux)
-    finally
-        close(fluxp)
-    end
-end
-
 @testset "Basic" begin
-    with_flux(4) do flux
-        @test FluxRM.size(flux) == 4
-        @test parse(Int, flux["size"]) == 4
+    let flux = Flux()
+        @test parse(Int, flux["size"]) == FluxRM.size(flux)
         @test_throws SystemError flux["size"] = "5"
     end
 end
@@ -47,7 +37,7 @@ end
 include("jobspec.jl")
 
 @testset "KVS" begin
-    with_flux(1) do flux
+    let flux = Flux()
         kvs = FluxRM.KVS(flux)
 
         @test_throws SystemError FluxRM.lookup(kvs, "test")
@@ -76,7 +66,7 @@ end
 @testset "Job launch" begin
     jobspec = JobSpec.from_command(`sleep 1`, num_tasks=2)
 
-    with_flux(1) do flux
+    let flux = Flux()
         jobsub = FluxRM.submit(flux, jobspec)
         job = FluxRM.Job(jobsub)
         wait(job)
@@ -84,13 +74,13 @@ end
 
     jobspec = JobSpec.from_command(`sleep inf`, num_tasks=2)
 
-    # with_flux(1) do flux
-    #     jobsub = FluxRM.submit(flux, jobspec)
-    #     job = FluxRM.Job(jobsub)
-    #     kill(job) # fails with Invalid argument
-    # end
+    let flux = Flux()
+        jobsub = FluxRM.submit(flux, jobspec)
+        job = FluxRM.Job(jobsub)
+        kill(job)
+    end
 
-    with_flux(1) do flux
+    let flux = Flux()
         jobsub = FluxRM.submit(flux, jobspec)
         job = FluxRM.Job(jobsub)
         FluxRM.cancel(job)
@@ -115,7 +105,7 @@ end
     """
     jobspec = JobSpec.from_batch_command(script, "nested_sleep")
 
-    with_flux(1) do flux
+    let flux = Flux()
         jobsub = FluxRM.submit(flux, jobspec)
         job = FluxRM.Job(jobsub)
         @test job.id > 0
@@ -126,7 +116,7 @@ end
 @testset "from_nest_command launch" begin
     jobspec = JobSpec.from_nest_command(`sleep 0`)
 
-    with_flux(1) do flux
+    let flux = Flux()
         jobsub = FluxRM.submit(flux, jobspec)
         job = FluxRM.Job(jobsub)
         @test job.id > 0
