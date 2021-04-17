@@ -11,3 +11,12 @@ mutable struct Future
     end
 end
 Base.unsafe_convert(::Type{Ptr{API.flux_future_t}}, future::Future) = future.handle
+
+# TODO: Integrate event loops
+
+function Base.wait(fut::Future)
+    r_result = Ref{Ptr{Cvoid}}()
+    err = API.flux_future_get(fut, r_result)
+    Libc.systemerror("flux_future_get", err == -1)
+    return nothing
+end

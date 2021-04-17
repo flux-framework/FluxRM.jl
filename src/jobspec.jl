@@ -124,6 +124,10 @@ function validate(task::Task, version)
     return validate(task.count, version)
 end
 
+function Task(cmd::Cmd, slot, count)
+    Task(cmd.exec, slot, count)
+end
+
 ###
 # Attributes
 ###
@@ -131,9 +135,11 @@ Base.@kwdef mutable struct System
     duration::Real = 0 # mandatory
     cwd::Union{Nothing, String} = nothing
     environment::Union{Nothing, Dict} = nothing
+    batch::Union{Nothing, Dict} = nothing
+    shell::Union{Nothing, Dict} = nothing
 end
 StructTypes.StructType(::Type{System}) = StructTypes.Mutable()
-StructTypes.omitempties(::Type{System}) = (:cwd, :environment)
+StructTypes.omitempties(::Type{System}) = (:cwd, :environment, :batch, :shell)
 
 function validate(system::System, version)
     @assert system.duration >= 0
@@ -172,6 +178,96 @@ function validate(jobspec::Jobspec, version)
     isvalid &= all(t->validate(t, version), jobspec.tasks)
     isvalid &= all(r->validate(r, version), jobspec.resources)
     return isvalid
+end
+
+function from_command(command; num_tasks::Int = 1, cores_per_task::Int = 1,
+                               gpus_per_task::Union{Nothing, Int} = nothing, num_nodes::Union{Nothing, Int} = nothing)
+    @assert num_tasks >= 1 
+    @assert cores_per_task >= 1
+    if gpus_per_task !== nothing
+        @assert gpus_per_task >= 1
+    end
+    if num_nodes !== nothing
+        @assert num_nodes >= 1
+        @assert num_nodes <= num_tasks
+    end
+
+    children = IntraNodeResource[CPUCore(count=cores_per_task)]
+
+    if gpus_per_task !== nothing
+        push!(children, GPU(count=gpus_per_task))
+    end
+
+    if num_nodes === nothing
+        count = Count(per_slot=1)
+        slot = Slot(label="task", count=num_tasks, with=children)
+        resource = slot
+    else
+        num_slots = ceil(Int, num_tasks / num_nodes)
+        if num_tasks % num_nodes != 0
+            count = Count(total=num_tasks)
+        else
+            count = Count(per_slot=1)
+        end
+        slot = Slot(label="task", count=num_slots, with=children)
+        resource = Node(count=num_nodes, [slot])
+    end
+
+    tasks = [Task(command, "task", count)]
+    resources = [resource]
+    attrs = Attributes(system=System(duration=0))
+
+    return JobspecV1(resources, tasks, attrs)
+end
+
+function from_batch_command(script, jobname; args=nothing, num_slots=1,
+                                             cores_per_slot=1, gpus_per_slot=nothing,
+                                             num_nodes=nothing, broker_opts=nothing)
+    @assert startswith(script, "#!")
+    args = args === nothing  ? () : args
+
+    jobspec = from_command(
+        `jobname $args`, # argv[0] will be replaced with the script
+        num_tasks=num_slots,
+        cores_per_task=cores_per_slot,
+        gpus_per_task=gpus_per_slot,
+        num_nodes=num_nodes
+    )
+
+    batch = Dict(
+        "script" => script,
+    )
+    if broker_opts !== nothing
+        batch["broker-opts"] = broker_opts
+    end
+    system = jobspec.attributes.system
+    system.batch = batch
+    system.shell = Dict(
+        "options" => Dict(
+            "per-resource.type" => "node"
+        )
+    )
+    return jobspec
+end
+
+function from_nest_command(command; num_slots=1, cores_per_slot=1,
+                                    gpus_per_slot=nothing, num_nodes=nothing, broker_opts=nothing)
+
+    broker_opts = broker_opts === nothing ? () :  broker_opts
+    jobspec = from_command(
+        `flux broker $broker_opts $command`,
+        num_tasks=num_slots,
+        cores_per_task=cores_per_slot,
+        gpus_per_task=gpus_per_slot,
+        num_nodes=num_nodes
+    )
+
+    jobspec.attributes.system.shell = Dict(
+        "options" => Dict(
+            "per-resource.type" => "node"
+        )
+    )
+    return jobspec
 end
 
 end # module
