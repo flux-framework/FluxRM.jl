@@ -72,6 +72,7 @@ end
         wait(job)
     end
 
+
     jobspec = JobSpec.from_command(`sleep inf`, num_tasks=2)
 
     let flux = Flux()

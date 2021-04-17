@@ -21,10 +21,11 @@ struct Job
 end
 
 function Job(jobsub::JobSubmission)
+    fut = jobsub.fut
     r_id = Ref{API.flux_jobid_t}()
-    err = API.flux_job_submit_get_id(jobsub.fut, r_id)
+    err = API.flux_job_submit_get_id(fut, r_id)
     if err == -1
-        errstr = API.flux_future_error_string(job)
+        errstr = API.flux_future_error_string(fut)
         error(Base.unsafe_string(errstr))
     end
     Libc.systemerror("flux_job_submit_get_id", err == -1)
