@@ -35,6 +35,7 @@ end
 end
 
 include("jobspec.jl")
+include("idset.jl")
 
 @testset "KVS" begin
     let flux = Flux()

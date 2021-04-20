@@ -73,4 +73,6 @@ include("core/kvs.jl")
 include("jobspec.jl")
 include("core/job.jl")
 
+include("core/idset.jl")
+
 end # module
