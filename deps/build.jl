@@ -1,16 +1,23 @@
 using Libdl
 
-if haskey(ENV, "JULIA_FLUX_LIB")
-    libflux_core = ENV["JULIA_FLUX_LIB"]
-else
-    libflux_core = Libdl.find_library(["libflux-core"], [])
-    if libflux_core == ""
-        error("Did not find libflux-core.so, please set the JULIA_FLUX_LIB environment variable.")
-    end
+paths = String[]
+if haskey(ENV, "JULIA_FLUX_PATH")
+    push!(paths, ENV["JULIA_FLUX_PATH"])
+end
+
+libflux_core = Libdl.find_library(["libflux-core"], paths)
+libflux_hostlist = Libdl.find_library(["libflux-hostlist"], paths)
+libflux_idset = Libdl.find_library(["libflux-idset"], paths)
+
+if libflux_core == "" || libflux_hostlist == "" || libflux_idset == ""
+    @error "Unable to find the libflux-* libraries" libflux_core libflux_hostlist libflux_idset
+    error("Did not find necessary libraries, please set the JULIA_FLUX_PATH environment variable.")
 end
 
 deps = quote
     const libflux_core = $libflux_core
+    const libflux_hostlist = $libflux_hostlist
+    const libflux_idset = $libflux_idset
 end
 
 remove_line_numbers(x) = x

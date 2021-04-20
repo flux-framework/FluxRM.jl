@@ -5,9 +5,12 @@ using CEnum
 include(joinpath(@__DIR__, "..", "deps", "deps.jl"))
 
 const pid_t = Cint
+const UINT_MAX = typemax(Cuint)
+
+include("api_hostlist.jl")
+include("api_idset.jl")
 
 
-# C code:
 # typedef void ( * flux_free_f ) ( void * arg )
 const flux_free_f = Ptr{Cvoid}
 
@@ -15,7 +18,7 @@ mutable struct flux_msg end
 
 const flux_msg_t = flux_msg
 
-@cenum var"##Ctag#253"::UInt32 begin
+@cenum __JL_Ctag_1::UInt32 begin
     FLUX_MSGTYPE_REQUEST = 1
     FLUX_MSGTYPE_RESPONSE = 2
     FLUX_MSGTYPE_EVENT = 4
@@ -24,7 +27,7 @@ const flux_msg_t = flux_msg
     FLUX_MSGTYPE_MASK = 15
 end
 
-@cenum var"##Ctag#254"::UInt32 begin
+@cenum __JL_Ctag_2::UInt32 begin
     FLUX_MSGFLAG_TOPIC = 1
     FLUX_MSGFLAG_PAYLOAD = 2
     FLUX_MSGFLAG_NORESPONSE = 4
@@ -34,7 +37,7 @@ end
     FLUX_MSGFLAG_STREAMING = 64
 end
 
-@cenum var"##Ctag#255"::UInt32 begin
+@cenum __JL_Ctag_3::UInt32 begin
     FLUX_NODEID_ANY = 0x00000000ffffffff
     FLUX_NODEID_UPSTREAM = 0x00000000fffffffe
 end
@@ -189,7 +192,7 @@ function flux_msg_get_nodeid(msg, nodeid)
     ccall((:flux_msg_get_nodeid, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{UInt32}), msg, nodeid)
 end
 
-@cenum var"##Ctag#256"::UInt32 begin
+@cenum __JL_Ctag_4::UInt32 begin
     FLUX_USERID_UNKNOWN = 0x00000000ffffffff
 end
 
@@ -201,7 +204,7 @@ function flux_msg_get_userid(msg, userid)
     ccall((:flux_msg_get_userid, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{UInt32}), msg, userid)
 end
 
-@cenum var"##Ctag#257"::UInt32 begin
+@cenum __JL_Ctag_5::UInt32 begin
     FLUX_ROLE_NONE = 0
     FLUX_ROLE_OWNER = 1
     FLUX_ROLE_USER = 2
@@ -261,7 +264,7 @@ function flux_msg_get_status(msg, status)
     ccall((:flux_msg_get_status, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}), msg, status)
 end
 
-@cenum var"##Ctag#258"::UInt32 begin
+@cenum __JL_Ctag_6::UInt32 begin
     FLUX_MATCHTAG_NONE = 0
 end
 
@@ -336,23 +339,22 @@ struct flux_msgcounters_t
     keepalive_rx::Cint
 end
 
-# C code:
 # typedef void ( * flux_fatal_f ) ( const char * msg , void * arg )
 const flux_fatal_f = Ptr{Cvoid}
 
-@cenum var"##Ctag#260"::UInt32 begin
+@cenum __JL_Ctag_8::UInt32 begin
     FLUX_O_TRACE = 1
     FLUX_O_CLONE = 2
     FLUX_O_NONBLOCK = 4
     FLUX_O_MATCHDEBUG = 8
 end
 
-@cenum var"##Ctag#261"::UInt32 begin
+@cenum __JL_Ctag_9::UInt32 begin
     FLUX_RQ_HEAD = 1
     FLUX_RQ_TAIL = 2
 end
 
-@cenum var"##Ctag#262"::UInt32 begin
+@cenum __JL_Ctag_10::UInt32 begin
     FLUX_POLLIN = 1
     FLUX_POLLOUT = 2
     FLUX_POLLERR = 4
@@ -566,16 +568,16 @@ mutable struct flux_reactor end
 
 const flux_reactor_t = flux_reactor
 
-@cenum var"##Ctag#263"::UInt32 begin
+@cenum __JL_Ctag_11::UInt32 begin
     FLUX_REACTOR_NOWAIT = 1
     FLUX_REACTOR_ONCE = 2
 end
 
-@cenum var"##Ctag#264"::UInt32 begin
+@cenum __JL_Ctag_12::UInt32 begin
     FLUX_REACTOR_SIGCHLD = 1
 end
 
-@cenum var"##Ctag#265"::UInt32 begin
+@cenum __JL_Ctag_13::UInt32 begin
     FLUX_WATCHER_LINE_BUFFER = 1
 end
 
@@ -631,7 +633,6 @@ mutable struct flux_watcher end
 
 const flux_watcher_t = flux_watcher
 
-# C code:
 # typedef void ( * flux_watcher_f ) ( flux_reactor_t * r , flux_watcher_t * w , int revents , void * arg )
 const flux_watcher_f = Ptr{Cvoid}
 
@@ -707,7 +708,6 @@ function flux_timer_watcher_reset(w, after, repeat)
     ccall((:flux_timer_watcher_reset, libflux_core), Cvoid, (Ptr{flux_watcher_t}, Cdouble, Cdouble), w, after, repeat)
 end
 
-# C code:
 # typedef double ( * flux_reschedule_f ) ( flux_watcher_t * w , double now , void * arg )
 const flux_reschedule_f = Ptr{Cvoid}
 
@@ -781,7 +781,6 @@ mutable struct flux_msg_handler end
 
 const flux_msg_handler_t = flux_msg_handler
 
-# C code:
 # typedef void ( * flux_msg_handler_f ) ( flux_t * h , flux_msg_handler_t * mh , const flux_msg_t * msg , void * arg )
 const flux_msg_handler_f = Ptr{Cvoid}
 
@@ -828,7 +827,6 @@ function flux_dispatch_requeue(h)
     ccall((:flux_dispatch_requeue, libflux_core), Cint, (Ptr{flux_t},), h)
 end
 
-# C code:
 # typedef flux_t * ( connector_init_f ) ( const char * uri , int flags )
 const connector_init_f = Cvoid
 
@@ -916,7 +914,6 @@ function flux_keepalive_decode(msg, errnum, status)
     ccall((:flux_keepalive_decode, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}, Ptr{Cint}), msg, errnum, status)
 end
 
-# C code:
 # typedef void ( * flux_log_f ) ( const char * buf , int len , void * arg )
 const flux_log_f = Ptr{Cvoid}
 
@@ -940,7 +937,6 @@ mutable struct flux_future end
 
 const flux_future_t = flux_future
 
-# C code:
 # typedef void ( * flux_continuation_f ) ( flux_future_t * f , void * arg )
 const flux_continuation_f = Ptr{Cvoid}
 
@@ -972,7 +968,6 @@ function flux_future_aux_set(f, name, aux, destroy)
     ccall((:flux_future_aux_set, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Cchar}, Ptr{Cvoid}, flux_free_f), f, name, aux, destroy)
 end
 
-# C code:
 # typedef void ( * flux_future_init_f ) ( flux_future_t * f , void * arg )
 const flux_future_init_f = Ptr{Cvoid}
 
@@ -1072,7 +1067,7 @@ function flux_future_continue_error(prev, errnum, errstr)
     ccall((:flux_future_continue_error, libflux_core), Cvoid, (Ptr{flux_future_t}, Cint, Ptr{Cchar}), prev, errnum, errstr)
 end
 
-@cenum var"##Ctag#266"::UInt32 begin
+@cenum __JL_Ctag_14::UInt32 begin
     FLUX_RPC_NORESPONSE = 1
     FLUX_RPC_STREAMING = 2
 end
@@ -1137,7 +1132,7 @@ function flux_event_publish_get_seq(f, seq)
     ccall((:flux_event_publish_get_seq, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Cint}), f, seq)
 end
 
-@cenum var"##Ctag#267"::UInt32 begin
+@cenum __JL_Ctag_15::UInt32 begin
     FLUX_MODSTATE_INIT = 0
     FLUX_MODSTATE_SLEEPING = 1
     FLUX_MODSTATE_RUNNING = 2
@@ -1145,11 +1140,9 @@ end
     FLUX_MODSTATE_EXITED = 4
 end
 
-# C code:
 # typedef int ( mod_main_f ) ( flux_t * h , int argc , char * argv [ ] )
 const mod_main_f = Cvoid
 
-# C code:
 # typedef void ( flux_moderr_f ) ( const char * errmsg , void * arg )
 const flux_moderr_f = Cvoid
 
@@ -1249,7 +1242,7 @@ function flux_heartbeat_decode(msg, epoch)
     ccall((:flux_heartbeat_decode, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}), msg, epoch)
 end
 
-@cenum var"##Ctag#269"::UInt32 begin
+@cenum __JL_Ctag_17::UInt32 begin
     CONTENT_FLAG_CACHE_BYPASS = 1
     CONTENT_FLAG_UPSTREAM = 2
 end
@@ -1290,7 +1283,7 @@ function flux_core_version(major, minor, patch)
     ccall((:flux_core_version, libflux_core), Cint, (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}), major, minor, patch)
 end
 
-@cenum var"##Ctag#270"::UInt32 begin
+@cenum __JL_Ctag_18::UInt32 begin
     FLUX_PLUGIN_RTLD_LAZY = 1
     FLUX_PLUGIN_RTLD_NOW = 2
     FLUX_PLUGIN_RTLD_GLOBAL = 4
@@ -1305,11 +1298,9 @@ mutable struct flux_plugin_arg end
 
 const flux_plugin_arg_t = flux_plugin_arg
 
-# C code:
 # typedef int ( * flux_plugin_f ) ( flux_plugin_t * p , const char * topic , flux_plugin_arg_t * args , void * data )
 const flux_plugin_f = Ptr{Cvoid}
 
-# C code:
 # typedef int ( * flux_plugin_init_f ) ( flux_plugin_t * p )
 const flux_plugin_init_f = Ptr{Cvoid}
 
@@ -1396,7 +1387,7 @@ function flux_plugin_arg_strerror(args)
     ccall((:flux_plugin_arg_strerror, libflux_core), Ptr{Cchar}, (Ptr{flux_plugin_arg_t},), args)
 end
 
-@cenum var"##Ctag#271"::UInt32 begin
+@cenum __JL_Ctag_19::UInt32 begin
     FLUX_PLUGIN_ARG_IN = 0
     FLUX_PLUGIN_ARG_OUT = 1
     FLUX_PLUGIN_ARG_UPDATE = 2
@@ -1662,7 +1653,7 @@ end
     FLUX_JOB_PRIORITY_MAX = 0x00000000ffffffff
 end
 
-@cenum var"##Ctag#272"::UInt64 begin
+@cenum __JL_Ctag_20::UInt64 begin
     FLUX_JOBID_ANY = 0xffffffffffffffff
 end
 
@@ -1676,7 +1667,7 @@ end
     FLUX_JOB_STATE_INACTIVE = 64
 end
 
-@cenum var"##Ctag#274"::UInt32 begin
+@cenum __JL_Ctag_22::UInt32 begin
     FLUX_JOB_STATE_PENDING = 14
     FLUX_JOB_STATE_RUNNING = 48
     FLUX_JOB_STATE_ACTIVE = 62
@@ -1807,24 +1798,20 @@ const flux_subprocess_server_t = flux_subprocess_server
     FLUX_SUBPROCESS_FAILED = 4
 end
 
-@cenum var"##Ctag#277"::UInt32 begin
+@cenum __JL_Ctag_25::UInt32 begin
     FLUX_SUBPROCESS_FLAGS_STDIO_FALLTHROUGH = 1
     FLUX_SUBPROCESS_FLAGS_SETPGRP = 2
 end
 
-# C code:
 # typedef void ( * flux_subprocess_f ) ( flux_subprocess_t * p )
 const flux_subprocess_f = Ptr{Cvoid}
 
-# C code:
 # typedef void ( * flux_subprocess_output_f ) ( flux_subprocess_t * p , const char * stream )
 const flux_subprocess_output_f = Ptr{Cvoid}
 
-# C code:
 # typedef void ( * flux_subprocess_state_f ) ( flux_subprocess_t * p , flux_subprocess_state_t state )
 const flux_subprocess_state_f = Ptr{Cvoid}
 
-# C code:
 # typedef void ( * flux_subprocess_hook_f ) ( flux_subprocess_t * p , void * arg )
 const flux_subprocess_hook_f = Ptr{Cvoid}
 
@@ -2039,23 +2026,11 @@ function flux_subprocess_aux_get(p, name)
     ccall((:flux_subprocess_aux_get, libflux_core), Ptr{Cvoid}, (Ptr{flux_subprocess_t}, Ptr{Cchar}), p, name)
 end
 
-# Skipping MacroDefinition: FLUX_MATCH_ANY flux_match_init ( FLUX_MSGTYPE_ANY , FLUX_MATCHTAG_NONE , NULL \
-
-# Skipping MacroDefinition: FLUX_MATCH_EVENT flux_match_init ( FLUX_MSGTYPE_EVENT , FLUX_MATCHTAG_NONE , NULL \
-
-# Skipping MacroDefinition: FLUX_MATCH_REQUEST flux_match_init ( FLUX_MSGTYPE_REQUEST , FLUX_MATCHTAG_NONE , NULL \
-
-# Skipping MacroDefinition: FLUX_MATCH_RESPONSE flux_match_init ( FLUX_MSGTYPE_RESPONSE , FLUX_MATCHTAG_NONE , NULL \
-
 const FLUX_OPT_TESTING_USERID = "flux::testing_userid"
 
 const FLUX_OPT_TESTING_ROLEMASK = "flux::testing_rolemask"
 
-# Skipping MacroDefinition: FLUX_MSGHANDLER_TABLE_END { 0 , NULL , NULL , 0 }
-
 const FLUX_MAX_LOGBUF = 2048
-
-const _FLUX_CORE_HEARTBEAT = nothing
 
 const FLUX_CORE_VERSION_STRING = "0.23.0"
 
@@ -2065,7 +2040,7 @@ const FLUX_CORE_VERSION_MINOR = 23
 
 const FLUX_CORE_VERSION_PATCH = 0
 
-# Skipping MacroDefinition: FLUX_CORE_VERSION_HEX ( ( FLUX_CORE_VERSION_MAJOR << 16 ) | ( FLUX_CORE_VERSION_MINOR << 8 ) | ( FLUX_CORE_VERSION_PATCH << 0 ) )
+const FLUX_CORE_VERSION_HEX = (FLUX_CORE_VERSION_MAJOR << 16 | FLUX_CORE_VERSION_MINOR << 8) | FLUX_CORE_VERSION_PATCH << 0
 
 const KVS_PRIMARY_NAMESPACE = "primary"
 
