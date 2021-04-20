@@ -74,5 +74,6 @@ include("jobspec.jl")
 include("core/job.jl")
 
 include("core/idset.jl")
+include("core/hostlist.jl")
 
 end # module
