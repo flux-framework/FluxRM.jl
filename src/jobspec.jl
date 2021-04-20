@@ -180,6 +180,67 @@ function validate(jobspec::Jobspec, version)
     return isvalid
 end
 
+function __get_io_path(spec::Jobspec, iotype, name)
+    system = spec.attributes.system
+    try
+        return system.shell["option"][iotype][name]["path"]
+    catch
+        return nothing
+    end
+end
+
+function __get_treedict!(dict, path...)
+    next_dict = dict
+    for node in path
+        next_dict = get!(_ -> Dict{String, Any}(), next_dict, node)
+    end
+    return next_dict
+end
+
+function __set_io_path(spec::Jobspec, iotype, name, path)
+    system = spec.attributes.system
+    if system.shell === nothing
+        system.shell = Dict{String, Any}()
+    end
+    io = __get_treedict!(system.shell, "option", iotype, name)
+
+    io["type"] = "file"
+    io["path"] = path
+end
+
+# Not happy with this API
+function Base.getproperty(spec::Jobspec, name::Symbol)
+    if name === :version
+        return getfield(spec, :version)
+    elseif name === :resources
+        return getfield(spec, :resources)
+    elseif name === :tasks
+        return getfield(spec, :tasks)
+    elseif name === :attributes
+        return getfield(spec, :attributes)
+    elseif name === :stderr
+        __get_io_path(spec, "output", "stderr")
+    elseif name === :stdout
+        __get_io_path(spec, "output", "stdout")
+    end
+end
+
+function Base.setproperty!(spec::Jobspec, name::Symbol, val)
+    if name === :version
+        return setfield!(spec, :version, val)
+    elseif name === :resources
+        return setfield!(spec, :resources, val)
+    elseif name === :tasks
+        return setfield!(spec, :tasks, val)
+    elseif name === :attributes
+        return setfield!(spec, :attributes, val)
+    elseif name === :stderr
+        __set_io_path(spec, "output", "stderr", val)
+    elseif name === :stdout
+        __set_io_path(spec, "output", "stdout", val)
+    end
+end
+
 function from_command(command; num_tasks::Int = 1, cores_per_task::Int = 1,
                                gpus_per_task::Union{Nothing, Int} = nothing, num_nodes::Union{Nothing, Int} = nothing)
     @assert num_tasks >= 1 
