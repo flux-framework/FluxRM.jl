@@ -69,6 +69,7 @@ end
 
 include("core/future.jl")
 include("core/kvs.jl")
+include("core/rpc.jl")
 
 include("jobspec.jl")
 include("core/job.jl")

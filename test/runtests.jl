@@ -124,3 +124,12 @@ end
         wait(job)
     end
 end
+
+@testset "RPC" begin
+    let flux = Flux()
+        rpc = FluxRM.RPC(Flux(), "broker.ping", Dict("seq"=>1, "pad"=>"stuff"))
+        response = fetch(rpc)
+        @test response.seq == 1
+        @test response.pad == "stuff"
+    end
+end
