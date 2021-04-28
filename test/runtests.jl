@@ -22,7 +22,7 @@ if !haskey(ENV, "FLUX_URI")
     @info "relaunching under Flux"
     current_file = @__FILE__ # bug in 1.5 can't be directly interpolated
     jlcmd = `$(Base.julia_cmd()) $(current_file)`
-    cmd = `flux start -o,-Slog-forward-level=7 --size=$(Sys.CPU_THREADS) -- $jlcmd`
+    cmd = `flux start -o,-Slog-forward-level=7 -- $jlcmd`
     @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
     exit()
 end
