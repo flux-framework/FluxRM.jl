@@ -96,6 +96,15 @@ end
         FluxRM.cancel(job2)
         @test_throws ErrorException wait(job)
     end
+
+    jobspec = JobSpec.from_command(`sleep inf`, num_nodes=1, num_tasks=2)
+    @test JobSpec.validate(jobspec, 1)
+
+    let flux = Flux()
+        jobsub = FluxRM.submit(flux, jobspec)
+        job = FluxRM.Job(jobsub)
+        FluxRM.cancel(job)
+    end
 end
 
 @testset "from_batch_command launch" begin
