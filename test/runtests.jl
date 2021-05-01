@@ -62,6 +62,11 @@ include("hostlist.jl")
             FluxRM.symlink!(txn, "test", "testdir.test")
         end
         @test FluxRM.lookup(kvs, "test") == "value"
+
+        # Cleanup KVS
+        FluxRM.transaction(kvs) do txn
+            FluxRM.unlink!(txn, "test")
+        end
     end
 end
 
