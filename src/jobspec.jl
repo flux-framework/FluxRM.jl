@@ -210,7 +210,7 @@ function from_command(command; num_tasks::Int = 1, cores_per_task::Int = 1,
             count = Count(per_slot=1)
         end
         slot = Slot(label="task", count=num_slots, with=children)
-        resource = Node(count=num_nodes, [slot])
+        resource = Node(count=num_nodes, with=[slot])
     end
 
     tasks = [Task(command, "task", count)]

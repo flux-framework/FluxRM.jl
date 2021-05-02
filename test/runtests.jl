@@ -22,7 +22,7 @@ if !haskey(ENV, "FLUX_URI")
     @info "relaunching under Flux"
     current_file = @__FILE__ # bug in 1.5 can't be directly interpolated
     jlcmd = `$(Base.julia_cmd()) $(current_file)`
-    cmd = `flux start -o,-Slog-forward-level=7 --size=$(Sys.CPU_THREADS) -- $jlcmd`
+    cmd = `flux start -o,-Slog-forward-level=7 -- $jlcmd`
     @test success(pipeline(cmd, stdout=stdout, stderr=stderr))
     exit()
 end
@@ -62,6 +62,11 @@ include("hostlist.jl")
             FluxRM.symlink!(txn, "test", "testdir.test")
         end
         @test FluxRM.lookup(kvs, "test") == "value"
+
+        # Cleanup KVS
+        FluxRM.transaction(kvs) do txn
+            FluxRM.unlink!(txn, "test")
+        end
     end
 end
 
@@ -95,6 +100,15 @@ end
         job2 = FluxRM.Job(flux, jobstr)
         FluxRM.cancel(job2)
         @test_throws ErrorException wait(job)
+    end
+
+    jobspec = JobSpec.from_command(`sleep inf`, num_nodes=1, num_tasks=2)
+    @test JobSpec.validate(jobspec, 1)
+
+    let flux = Flux()
+        jobsub = FluxRM.submit(flux, jobspec)
+        job = FluxRM.Job(jobsub)
+        FluxRM.cancel(job)
     end
 end
 
