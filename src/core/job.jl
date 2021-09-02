@@ -56,12 +56,13 @@ function Base.wait(job::Job)
 
     r_success = Ref{Bool}()
     r_errstr = Ref{Ptr{Cchar}}()
+    wait(fut) # Cooperative waiting
     err = API.flux_job_wait_get_status(fut, r_success, r_errstr)
     Libc.systemerror("flux_job_wait_get_status", err == -1)
     if !r_success[]
         error(Base.unsafe_string(r_errstr[]))
     end
-    return 
+    return
 end
 
 function kill_async(job::Job, signum=Base.SIGTERM)
@@ -84,4 +85,3 @@ end
 function cancel(job::Job, reason=nothing)
     wait(cancel_async(job, reason))
 end
-

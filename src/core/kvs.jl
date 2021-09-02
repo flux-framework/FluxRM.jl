@@ -9,13 +9,14 @@ function lookup(kvs::KVS, key)
     handle = API.flux_kvs_lookup(kvs.flux, C_NULL, 0, key)
     Libc.systemerror("flux_kvs_lookup", handle == C_NULL)
     future = Future(handle)
+    wait(future) # Cooperative waiting
 
     r_buf = Ref{Ptr{Cvoid}}()
     r_len = Ref{Cint}()
     err = API.flux_kvs_lookup_get_raw(future, r_buf, r_len)
     Libc.systemerror("flux_kvs_lookup_get_raw", err == -1)
 
-    ptr = r_buf[] 
+    ptr = r_buf[]
     if ptr == C_NULL
         return nothing
     end
@@ -61,6 +62,8 @@ function transaction(f, kvs::KVS)
     txn = Transaction(kvs)
     f(txn)
     future = commit(kvs.flux, txn, C_NULL)
+    wait(future) # Cooperative waiting
+    # TODO: add success API
     err = API.flux_future_get(future, C_NULL)
     Libc.systemerror("flux_future_get", err == -1)
 end
@@ -69,6 +72,8 @@ function transaction(f, kvs::KVS, name, nprocs)
     txn = Transaction(kvs)
     f(txn)
     future = fence(kvs.flux, txn, name, nprocs, C_NULL)
+    wait(future) # Cooperative waiting
+    # TODO: add success API
     err = API.flux_future_get(future, C_NULL)
     Libc.systemerror("flux_future_get", err == -1)
 end

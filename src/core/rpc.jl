@@ -7,7 +7,7 @@ struct RPC
             payload = C_NULL
         else
             payload = JSON3.write(payload)
-        end 
+        end
         handle = API.flux_rpc(flux, topic, payload, nodeid, flags)
         new(flux, Future(handle))
     end
@@ -15,12 +15,14 @@ end
 
 function Base.fetch(rpc::RPC)
     future = rpc.future
+    wait(future) # Cooperative waiting
+
     r_buf = Ref{Ptr{Cvoid}}()
     r_len = Ref{Cint}()
     err = API.flux_rpc_get_raw(future, r_buf, r_len)
     Libc.systemerror("flux_rpc_get_raw", err == -1)
 
-    ptr = r_buf[] 
+    ptr = r_buf[]
     if ptr == C_NULL
         return nothing
     end
