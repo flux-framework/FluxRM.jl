@@ -1,15 +1,14 @@
 mutable struct KVS
     flux::Flux
-    function KVS(flux::Flux)
-        new(flux)
-    end
 end
 
 function lookup(kvs::KVS, key)
     handle = API.flux_kvs_lookup(kvs.flux, C_NULL, 0, key)
     Libc.systemerror("flux_kvs_lookup", handle == C_NULL)
-    future = Future(handle)
-    wait(future) # Cooperative waiting
+    future = handle
+    # future = Future(handle)
+    # FIXME: Can't call wait since we will lose the data below
+    # wait(future) # Cooperative waiting
 
     r_buf = Ref{Ptr{Cvoid}}()
     r_len = Ref{Cint}()
@@ -18,13 +17,15 @@ function lookup(kvs::KVS, key)
 
     ptr = r_buf[]
     if ptr == C_NULL
+        API.flux_future_destroy(future)
         return nothing
     end
 
-    data = GC.@preserve future begin
+    # data = GC.@preserve future begin
         buf = Base.unsafe_wrap(Array, Base.unsafe_convert(Ptr{UInt8}, ptr), r_len[])
-        copy(buf) # lifetime of buf ends with future
-    end
+        data = copy(buf) # lifetime of buf ends with future
+    # end
+    API.flux_future_destroy(future)
     return JSON3.read(data)
 end
 
@@ -63,9 +64,6 @@ function transaction(f, kvs::KVS)
     f(txn)
     future = commit(kvs.flux, txn, C_NULL)
     wait(future) # Cooperative waiting
-    # TODO: add success API
-    err = API.flux_future_get(future, C_NULL)
-    Libc.systemerror("flux_future_get", err == -1)
 end
 
 function transaction(f, kvs::KVS, name, nprocs)
@@ -73,9 +71,6 @@ function transaction(f, kvs::KVS, name, nprocs)
     f(txn)
     future = fence(kvs.flux, txn, name, nprocs, C_NULL)
     wait(future) # Cooperative waiting
-    # TODO: add success API
-    err = API.flux_future_get(future, C_NULL)
-    Libc.systemerror("flux_future_get", err == -1)
 end
 
 function put!(txn::Transaction, key, value)

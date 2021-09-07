@@ -50,6 +50,7 @@ function progress(reactor)
             end
             systemerror("flux_reactor_run", errno)
         end
+        # TODO: Should we yield here?
     end
 end
 
@@ -62,7 +63,7 @@ function Base.wait(flux::Flux)
     if events & API.FLUX_POLLIN != 0
         reactor = API.flux_get_reactor(flux)
         systemerror("flux_get_reactor", reactor == C_NULL)
-        progress(reactor)
+        progress(reactor) # Run until no more events
     end
 end
 
