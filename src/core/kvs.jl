@@ -2,31 +2,44 @@ mutable struct KVS
     flux::Flux
 end
 
-function lookup(kvs::KVS, key)
-    handle = API.flux_kvs_lookup(kvs.flux, C_NULL, 0, key)
-    Libc.systemerror("flux_kvs_lookup", handle == C_NULL)
-    future = handle
-    # future = Future(handle)
-    # FIXME: Can't call wait since we will lose the data below
-    # wait(future) # Cooperative waiting
-
+function kvs_callback(future)
     r_buf = Ref{Ptr{Cvoid}}()
     r_len = Ref{Cint}()
     err = API.flux_kvs_lookup_get_raw(future, r_buf, r_len)
-    Libc.systemerror("flux_kvs_lookup_get_raw", err == -1)
+
+    if err == -1
+        errno = Libc.errno()
+        future.success = false
+        future.result = SystemError("flux_kvs_lookup_get_raw", errno)
+        return
+    end
+    future.success = true
 
     ptr = r_buf[]
     if ptr == C_NULL
-        API.flux_future_destroy(future)
-        return nothing
+        future.result = nothing
+        return
     end
 
-    # data = GC.@preserve future begin
-        buf = Base.unsafe_wrap(Array, Base.unsafe_convert(Ptr{UInt8}, ptr), r_len[])
-        data = copy(buf) # lifetime of buf ends with future
-    # end
-    API.flux_future_destroy(future)
-    return JSON3.read(data)
+    @assert r_len[] >= 0
+    buf = Base.unsafe_wrap(Array, Base.unsafe_convert(Ptr{UInt8}, ptr), r_len[])
+    future.result = copy(buf) # lifetime of buf ends with future handle
+    return
+end
+
+function lookup(kvs::KVS, key)
+    handle = API.flux_kvs_lookup(kvs.flux, C_NULL, 0, key)
+    Libc.systemerror("flux_kvs_lookup", handle == C_NULL)
+    future = Future(handle, kvs_callback)
+    wait(future)
+
+    result = future.result
+    if result === nothing
+        return nothing
+    end
+    result::Vector{UInt8}
+
+    return JSON3.read(result)
 end
 
 mutable struct Transaction

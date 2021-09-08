@@ -1,29 +1,39 @@
 const alive_futures = IdDict{Any, Nothing}()
 
-function callback(fut, arg)
+function callback(fut::Ptr{API.flux_future_t}, arg::Ptr{Cvoid})
     future = Base.unsafe_pointer_to_objref(arg)::Future
     delete!(alive_futures, future)
-    @assert fut == future.handle # TODO: GC handling
-    err = API.flux_future_get(fut, C_NULL)
+    @assert fut == future.handle
+
+    # Invoke user callback
+    Base.invokelatest(future.callback, future)
+
+    future.handle = C_NULL
+    API.flux_future_destroy(fut)
+    return
+end
+
+function default_callback(future)
+    err = API.flux_future_get(future, C_NULL)
     if err == -1
+        errno = Libc.errno()
         future.success = false
-        future.errno   = Libc.errno()
+        future.result = SystemError("flux_job_wait_get_status", errno)
     else
         future.success = true
     end
-    future.handle  = C_NULL
-    API.flux_future_destroy(fut)
-    return nothing
+    return
 end
 
 mutable struct Future
     handle::Ptr{API.flux_future_t}
     refs::IdDict{Any, Nothing}
     success::Union{Nothing, Bool}
-    errno::Int
-    function Future(handle)
+    result::Any
+    callback::Function
+    function Future(handle, callback=default_callback)
         @assert handle != C_NULL
-        this = new(handle, IdDict{Any, Nothing}(), nothing, 0)
+        this = new(handle, IdDict{Any, Nothing}(), nothing, nothing, callback)
         alive_futures[this] = nothing
         API.flux_future_then(this,
             -1.0,
@@ -38,7 +48,7 @@ function Base.wait(fut::Future)
     if fut.success !== nothing
         @assert fut.handle === C_NULL
         if !fut.success
-            systemerror("flux_future_get", fut.errno)
+            throw(fut.result)
         end
         return
     end
@@ -55,7 +65,7 @@ function Base.wait(fut::Future)
         # progress(reactor)
     end
     if !fut.success
-        systemerror("flux_future_get", fut.errno)
+        throw(fut.result)
     end
     return
 end

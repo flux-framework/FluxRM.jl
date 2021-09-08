@@ -50,21 +50,34 @@ function encode(job::Job, encoding="f58")
     return String(buf)
 end
 
-function Base.wait(job::Job)
-    handle = API.flux_job_wait(job.flux, job.id)
-    # fut = Future(handle)
-    fut = handle
-
+function job_callback(future::Future)
     r_success = Ref{Bool}()
     r_errstr = Ref{Ptr{Cchar}}()
-    # wait(fut) # Cooperative waiting
-    # FIXME: Can't call wait since we will lose the data below
-    err = API.flux_job_wait_get_status(fut, r_success, r_errstr)
-    Libc.systemerror("flux_job_wait_get_status", err == -1)
-    API.flux_future_destroy(fut)
-    if !r_success[]
-        error(Base.unsafe_string(r_errstr[]))
+    err = API.flux_job_wait_get_status(future, r_success, r_errstr)
+
+    if err == -1
+        errno = Libc.errno()
+        future.success = false
+        future.result = SystemError("flux_job_wait_get_status", errno)
+        return
     end
+
+    if !r_success[]
+        future.success = false
+        future.result = ErrorException(Base.unsafe_string(r_errstr[]))
+        return
+    end
+
+    future.success = true
+
+    return
+end
+
+function Base.wait(job::Job)
+    handle = API.flux_job_wait(job.flux, job.id)
+    Libc.systemerror("flux_job_wait", handle == C_NULL)
+    wait(Future(handle, job_callback))
+
     return
 end
 

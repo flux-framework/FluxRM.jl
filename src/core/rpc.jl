@@ -1,7 +1,31 @@
+function rpc_callback(future)
+    r_buf = Ref{Ptr{Cvoid}}()
+    r_len = Ref{Cint}()
+    err = API.flux_rpc_get_raw(future, r_buf, r_len)
+
+    if err == -1
+        errno = Libc.errno()
+        future.success = false
+        future.result = SystemError("flux_rpc_get_raw", errno)
+        return
+    end
+    future.success = true
+
+    ptr = r_buf[]
+    if ptr == C_NULL
+        future.result = nothing
+        return
+    end
+
+    buf = Base.unsafe_wrap(Array, Base.unsafe_convert(Ptr{UInt8}, ptr), r_len[])
+    future.result = copy(buf) # lifetime of buf ends with future handle
+
+    return
+end
+
 struct RPC
     flux::Flux
-    future::Ptr{API.flux_future_t}
-    # future::Future
+    future::Future
 
     function RPC(flux::Flux, topic, payload=nothing; nodeid=API.FLUX_NODEID_ANY, flags=0)
         if payload === nothing
@@ -10,32 +34,19 @@ struct RPC
             payload = JSON3.write(payload)
         end
         handle = API.flux_rpc(flux, topic, payload, nodeid, flags)
-        # new(flux, Future(handle))
-        new(flux, handle)
+        new(flux, Future(handle, rpc_callback))
     end
 end
 
 function Base.fetch(rpc::RPC)
     future = rpc.future
+    wait(future)
 
-    # FIXME: Can't call wait since we will lose the data below
-    # wait(future) # Cooperative waiting
-
-    r_buf = Ref{Ptr{Cvoid}}()
-    r_len = Ref{Cint}()
-    err = API.flux_rpc_get_raw(future, r_buf, r_len)
-    Libc.systemerror("flux_rpc_get_raw", err == -1)
-
-    ptr = r_buf[]
-    if ptr == C_NULL
-        API.flux_future_destroy(future)
+    result = future.result
+    if result === nothing
         return nothing
     end
+    result::Vector{UInt8}
 
-    # data = GC.@preserve future begin
-        buf = Base.unsafe_wrap(Array, Base.unsafe_convert(Ptr{UInt8}, ptr), r_len[])
-        data = copy(buf) # lifetime of buf ends with future
-    # end
-    API.flux_future_destroy(future)
-    return JSON3.read(data)
+    return JSON3.read(result)
 end
