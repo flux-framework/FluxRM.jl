@@ -55,13 +55,14 @@ function progress(reactor)
 end
 
 function Base.wait(flux::Flux)
+    reactor = API.flux_get_reactor(flux)
+    progress(reactor) # Drain reactor first
     poll_fd(flux.fd, writable=true, readable=true)
     events = API.flux_pollevents(flux)
     if events & API.FLUX_POLLERR != 0
         throw(FluxError("FLUX_POLLERR"))
     end
     if events & API.FLUX_POLLIN != 0
-        reactor = API.flux_get_reactor(flux)
         systemerror("flux_get_reactor", reactor == C_NULL)
         progress(reactor) # Run until no more events
     end
@@ -113,5 +114,19 @@ include("core/job.jl")
 
 include("core/idset.jl")
 include("core/hostlist.jl")
+
+function service_register(flux::Flux, name)
+    handle = API.flux_service_register(flux, name)
+    Libc.systemerror("flux_service_register", handle == C_NULL)
+    Future(handle)
+end
+
+function service_unregister(flux::Flux, name)
+    handle = API.flux_service_unregister(flux, name)
+    Libc.systemerror("flux_service_unregister", handle == C_NULL)
+    Future(handle)
+end
+
+include("core/msg_handler.jl")
 
 end # module
