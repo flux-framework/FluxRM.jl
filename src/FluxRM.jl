@@ -39,31 +39,42 @@ end
 Base.unsafe_convert(::Type{Ptr{API.flux_t}}, flux::Flux) = flux.handle
 # flux_fatal_set
 
+"""
+    progress(reactor)
+
+Make progress on the reactor, returns true if there are no
+outstanding events, false if there are some events that couldn't
+be processed.
+"""
 function progress(reactor)
-    while true
-        rc = API.flux_reactor_run(reactor, API.FLUX_REACTOR_NOWAIT)
-        rc == 0 && break # No more events
-        if rc < 0
-            errno = Libc.errno()
-            if errno == Libc.EWOULDBLOCK || errno == Libc.EAGAIN
-                continue
-            end
-            systemerror("flux_reactor_run", errno)
+    rc = API.flux_reactor_run(reactor, API.FLUX_REACTOR_NOWAIT)
+    rc == 0 && return true # No more events
+    if rc < 0
+        errno = Libc.errno()
+        if errno == Libc.EWOULDBLOCK || errno == Libc.EAGAIN
+            return false
         end
-        # TODO: Should we yield here?
+        systemerror("flux_reactor_run", errno)
     end
+    return false
 end
 
 function Base.wait(flux::Flux)
-    poll_fd(flux.fd, writable=true, readable=true)
-    events = API.flux_pollevents(flux)
-    if events & API.FLUX_POLLERR != 0
-        throw(FluxError("FLUX_POLLERR"))
-    end
-    if events & API.FLUX_POLLIN != 0
-        reactor = API.flux_get_reactor(flux)
-        systemerror("flux_get_reactor", reactor == C_NULL)
-        progress(reactor) # Run until no more events
+    while true
+        poll_fd(flux.fd, writable=true, readable=true)
+        events = API.flux_pollevents(flux)
+        if events & API.FLUX_POLLERR != 0
+            throw(FluxError("FLUX_POLLERR"))
+        end
+        if events & API.FLUX_POLLIN != 0
+            reactor = API.flux_get_reactor(flux)
+            systemerror("flux_get_reactor", reactor == C_NULL)
+            if progress(reactor) # Run until no more events
+                return
+            end
+            GC.safepoint()
+            yield()
+        end
     end
 end
 
