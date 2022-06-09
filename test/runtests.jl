@@ -112,40 +112,47 @@ end
     end
 end
 
-@testset "from_batch_command launch" begin
-    @test_throws AssertionError JobSpec.from_batch_command("sleep 0", "missing shebang")
+# @testset "from_batch_command launch" begin
+#     @test_throws AssertionError JobSpec.from_batch_command("sleep 0", "missing shebang")
 
-    script = """
-    #!/bin/sh
+#     script = """
+#     #!/bin/sh
 
-    sleep 0
-    """
-    jobspec = JobSpec.from_batch_command(script, "nested_sleep")
+#     sleep 0
+#     """
+#     jobspec = JobSpec.from_batch_command(script, "nested_sleep")
 
-    let flux = Flux()
-        jobsub = FluxRM.submit(flux, jobspec)
-        job = FluxRM.Job(jobsub)
-        @test job.id > 0
-        wait(job)
-    end
-end
+#     let flux = Flux()
+#         jobsub = FluxRM.submit(flux, jobspec)
+#         job = FluxRM.Job(jobsub)
+#         @test job.id > 0
+#         wait(job)
+#     end
+# end
 
-@testset "from_nest_command launch" begin
-    jobspec = JobSpec.from_nest_command(`sleep 0`)
+# @testset "from_nest_command launch" begin
+#     jobspec = JobSpec.from_nest_command(`sleep 0`)
 
-    let flux = Flux()
-        jobsub = FluxRM.submit(flux, jobspec)
-        job = FluxRM.Job(jobsub)
-        @test job.id > 0
-        wait(job)
-    end
-end
+#     let flux = Flux()
+#         jobsub = FluxRM.submit(flux, jobspec)
+#         job = FluxRM.Job(jobsub)
+#         @test job.id > 0
+#         wait(job)
+#     end
+# end
 
 @testset "RPC" begin
     let flux = Flux()
-        rpc = FluxRM.RPC(Flux(), "broker.ping", Dict("seq"=>1, "pad"=>"stuff"))
+        rpc = FluxRM.RPC(flux, "broker.ping", Dict("seq"=>1, "pad"=>"stuff"))
         response = fetch(rpc)
         @test response.seq == 1
         @test response.pad == "stuff"
+    end
+end
+
+@testset "service" begin
+    let flux = Flux()
+        wait(FluxRM.service_register(flux, "jltest"))
+        wait(FluxRM.service_unregister(flux, "jltest"))
     end
 end
