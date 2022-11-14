@@ -1,6 +1,8 @@
 module FluxRM
 
 using JSON3
+import Base.Libc: RawFD
+import FileWatching: poll_fd
 
 include("api.jl")
 
@@ -17,18 +19,67 @@ end
 
 mutable struct Flux
     handle::Ptr{API.flux_t}
+    fd::RawFD
 
-    function Flux(handle::Ptr{API.flux_t})
+    function Flux(handle::Ptr{API.flux_t}; own=true)
         @assert handle != C_NULL
-        this = new(handle)
-        finalizer(this) do flux
-            API.flux_close(flux)
+        fd = API.flux_pollfd(handle)
+        systemerror("flux_pollfd", fd < 0)
+
+        this = new(handle, RawFD(fd))
+        # alternative unique through WeakRefDict?
+        if own
+            finalizer(this) do flux
+                API.flux_close(flux)
+            end
         end
         return this
     end
 end
 Base.unsafe_convert(::Type{Ptr{API.flux_t}}, flux::Flux) = flux.handle
 # flux_fatal_set
+
+"""
+    progress(reactor)
+
+Make progress on the reactor, returns true if there are no
+outstanding events, false if there are some events that couldn't
+be processed.
+"""
+function progress(reactor)
+    @show rc = API.flux_reactor_run(reactor, API.FLUX_REACTOR_NOWAIT)
+    rc >= 0 && return true # No more events
+    if rc < 0
+        @show errno = Libc.errno()
+        if errno == Libc.EWOULDBLOCK || errno == Libc.EAGAIN
+            return progress(reactor)
+            # return false
+        end
+        systemerror("flux_reactor_run", errno)
+    end
+    return false
+end
+
+function Base.wait(flux::Flux)
+        @info "Sleeping on FD" exception=(ErrorException(""),backtrace())
+        poll_fd(flux.fd, writable=true, readable=true)
+        @show events = API.flux_pollevents(flux)
+        if events & API.FLUX_POLLERR != 0
+            throw(FluxError("FLUX_POLLERR"))
+        end
+        if events & API.FLUX_POLLIN != 0
+            reactor = API.flux_get_reactor(flux)
+            systemerror("flux_get_reactor", reactor == C_NULL)
+            if progress(reactor) # Run until no more events
+                return
+            end
+            GC.safepoint()
+            yield()
+            return
+        end
+        @warn "Some events" events
+        return
+end
 
 function Flux(uri = nothing; flags = 0)
     if uri === nothing

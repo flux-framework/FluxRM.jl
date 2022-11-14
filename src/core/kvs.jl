@@ -1,30 +1,45 @@
 mutable struct KVS
     flux::Flux
-    function KVS(flux::Flux)
-        new(flux)
+end
+
+function kvs_callback(future)
+    r_buf = Ref{Ptr{Cvoid}}()
+    r_len = Ref{Cint}()
+    err = API.flux_kvs_lookup_get_raw(future, r_buf, r_len)
+
+    if err == -1
+        errno = Libc.errno()
+        future.success = false
+        future.result = SystemError("flux_kvs_lookup_get_raw", errno)
+        return
     end
+    future.success = true
+
+    ptr = r_buf[]
+    if ptr == C_NULL
+        future.result = nothing
+        return
+    end
+
+    @assert r_len[] >= 0
+    buf = Base.unsafe_wrap(Array, Base.unsafe_convert(Ptr{UInt8}, ptr), r_len[])
+    future.result = copy(buf) # lifetime of buf ends with future handle
+    return
 end
 
 function lookup(kvs::KVS, key)
     handle = API.flux_kvs_lookup(kvs.flux, C_NULL, 0, key)
     Libc.systemerror("flux_kvs_lookup", handle == C_NULL)
-    future = Future(handle)
+    future = Future(handle, kvs_callback)
+    wait(future)
 
-    r_buf = Ref{Ptr{Cvoid}}()
-    r_len = Ref{Cint}()
-    err = API.flux_kvs_lookup_get_raw(future, r_buf, r_len)
-    Libc.systemerror("flux_kvs_lookup_get_raw", err == -1)
-
-    ptr = r_buf[] 
-    if ptr == C_NULL
+    result = future.result
+    if result === nothing
         return nothing
     end
+    result::Vector{UInt8}
 
-    data = GC.@preserve future begin
-        buf = Base.unsafe_wrap(Array, Base.unsafe_convert(Ptr{UInt8}, ptr), r_len[])
-        copy(buf) # lifetime of buf ends with future
-    end
-    return JSON3.read(data)
+    return JSON3.read(result)
 end
 
 mutable struct Transaction
@@ -61,16 +76,14 @@ function transaction(f, kvs::KVS)
     txn = Transaction(kvs)
     f(txn)
     future = commit(kvs.flux, txn, C_NULL)
-    err = API.flux_future_get(future, C_NULL)
-    Libc.systemerror("flux_future_get", err == -1)
+    wait(future) # Cooperative waiting
 end
 
 function transaction(f, kvs::KVS, name, nprocs)
     txn = Transaction(kvs)
     f(txn)
     future = fence(kvs.flux, txn, name, nprocs, C_NULL)
-    err = API.flux_future_get(future, C_NULL)
-    Libc.systemerror("flux_future_get", err == -1)
+    wait(future) # Cooperative waiting
 end
 
 function put!(txn::Transaction, key, value)
