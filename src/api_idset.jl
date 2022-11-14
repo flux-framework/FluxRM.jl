@@ -1,12 +1,16 @@
 using CEnum
 
+mutable struct idset end
+
+function idset_subtract(a, b)
+    ccall((:idset_subtract, libflux_idset), Cint, (Ptr{idset}, Ptr{idset}), a, b)
+end
+
 @cenum idset_flags::UInt32 begin
     IDSET_FLAG_AUTOGROW = 1
     IDSET_FLAG_BRACKETS = 2
     IDSET_FLAG_RANGE = 4
 end
-
-mutable struct idset end
 
 function idset_create(size, flags)
     ccall((:idset_create, libflux_idset), Ptr{idset}, (Csize_t, Cint), size, flags)
@@ -68,8 +72,28 @@ function idset_count(idset_)
     ccall((:idset_count, libflux_idset), Csize_t, (Ptr{idset},), idset_)
 end
 
-function idset_equal(set1, set2)
-    ccall((:idset_equal, libflux_idset), Bool, (Ptr{idset}, Ptr{idset}), set1, set2)
+function idset_equal(a, arg2)
+    ccall((:idset_equal, libflux_idset), Bool, (Ptr{idset}, Ptr{idset}), a, arg2)
+end
+
+function idset_union(a, b)
+    ccall((:idset_union, libflux_idset), Ptr{idset}, (Ptr{idset}, Ptr{idset}), a, b)
+end
+
+function idset_add(a, b)
+    ccall((:idset_add, libflux_idset), Cint, (Ptr{idset}, Ptr{idset}), a, b)
+end
+
+function idset_difference(a, b)
+    ccall((:idset_difference, libflux_idset), Ptr{idset}, (Ptr{idset}, Ptr{idset}), a, b)
+end
+
+function idset_intersect(a, b)
+    ccall((:idset_intersect, libflux_idset), Ptr{idset}, (Ptr{idset}, Ptr{idset}), a, b)
+end
+
+function idset_has_intersection(a, b)
+    ccall((:idset_has_intersection, libflux_idset), Bool, (Ptr{idset}, Ptr{idset}), a, b)
 end
 
 const IDSET_INVALID_ID = UINT_MAX - 1

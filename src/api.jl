@@ -11,23 +11,61 @@ include("api_hostlist.jl")
 include("api_idset.jl")
 
 
+struct flux_match
+    typemask::Cint
+    matchtag::UInt32
+    topic_glob::Ptr{Cchar}
+end
+
+function flux_match_init(typemask, matchtag, topic_glob)
+    ccall((:flux_match_init, libflux_core), flux_match, (Cint, UInt32, Ptr{Cchar}), typemask, matchtag, topic_glob)
+end
+
+mutable struct flux_future end
+
+const flux_future_t = flux_future
+
+function flux_future_has_error(f)
+    ccall((:flux_future_has_error, libflux_core), Bool, (Ptr{flux_future_t},), f)
+end
+
+function flux_future_error_string(f)
+    ccall((:flux_future_error_string, libflux_core), Ptr{Cchar}, (Ptr{flux_future_t},), f)
+end
+
+function flux_strerror(errnum)
+    ccall((:flux_strerror, libflux_core), Ptr{Cchar}, (Cint,), errnum)
+end
+
+mutable struct flux_subprocess end
+
+const flux_subprocess_t = flux_subprocess
+
+function flux_subprocess_unref(p)
+    ccall((:flux_subprocess_unref, libflux_core), Cvoid, (Ptr{flux_subprocess_t},), p)
+end
+
 # typedef void ( * flux_free_f ) ( void * arg )
 const flux_free_f = Ptr{Cvoid}
+
+struct flux_error_t
+    text::NTuple{160, Cchar}
+end
 
 mutable struct flux_msg end
 
 const flux_msg_t = flux_msg
 
-@cenum __JL_Ctag_1::UInt32 begin
+@cenum __JL_Ctag_21::UInt32 begin
     FLUX_MSGTYPE_REQUEST = 1
     FLUX_MSGTYPE_RESPONSE = 2
     FLUX_MSGTYPE_EVENT = 4
-    FLUX_MSGTYPE_KEEPALIVE = 8
+    FLUX_MSGTYPE_CONTROL = 8
     FLUX_MSGTYPE_ANY = 15
     FLUX_MSGTYPE_MASK = 15
 end
 
-@cenum __JL_Ctag_2::UInt32 begin
+@cenum __JL_Ctag_22::UInt32 begin
     FLUX_MSGFLAG_TOPIC = 1
     FLUX_MSGFLAG_PAYLOAD = 2
     FLUX_MSGFLAG_NORESPONSE = 4
@@ -37,19 +75,9 @@ end
     FLUX_MSGFLAG_STREAMING = 64
 end
 
-@cenum __JL_Ctag_3::UInt32 begin
+@cenum __JL_Ctag_23::UInt32 begin
     FLUX_NODEID_ANY = 0x00000000ffffffff
     FLUX_NODEID_UPSTREAM = 0x00000000fffffffe
-end
-
-struct flux_match
-    typemask::Cint
-    matchtag::UInt32
-    topic_glob::Ptr{Cchar}
-end
-
-function flux_match_init(typemask, matchtag, topic_glob)
-    ccall((:flux_match_init, libflux_core), flux_match, (Cint, UInt32, Ptr{Cchar}), typemask, matchtag, topic_glob)
 end
 
 function flux_match_free(m)
@@ -85,7 +113,7 @@ function flux_msg_decref(msg)
 end
 
 function flux_msg_encode_size(msg)
-    ccall((:flux_msg_encode_size, libflux_core), Csize_t, (Ptr{flux_msg_t},), msg)
+    ccall((:flux_msg_encode_size, libflux_core), Cssize_t, (Ptr{flux_msg_t},), msg)
 end
 
 function flux_msg_encode(msg, buf, size)
@@ -98,18 +126,6 @@ end
 
 function flux_msg_decode(buf, size)
     ccall((:flux_msg_decode, libflux_core), Ptr{flux_msg_t}, (Ptr{Cvoid}, Csize_t), buf, size)
-end
-
-function flux_msg_sendzsock(dest, msg)
-    ccall((:flux_msg_sendzsock, libflux_core), Cint, (Ptr{Cvoid}, Ptr{flux_msg_t}), dest, msg)
-end
-
-function flux_msg_sendzsock_ex(dest, msg, nonblock)
-    ccall((:flux_msg_sendzsock_ex, libflux_core), Cint, (Ptr{Cvoid}, Ptr{flux_msg_t}, Bool), dest, msg, nonblock)
-end
-
-function flux_msg_recvzsock(dest)
-    ccall((:flux_msg_recvzsock, libflux_core), Ptr{flux_msg_t}, (Ptr{Cvoid},), dest)
 end
 
 function flux_msg_set_type(msg, type)
@@ -192,7 +208,7 @@ function flux_msg_get_nodeid(msg, nodeid)
     ccall((:flux_msg_get_nodeid, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{UInt32}), msg, nodeid)
 end
 
-@cenum __JL_Ctag_4::UInt32 begin
+@cenum __JL_Ctag_24::UInt32 begin
     FLUX_USERID_UNKNOWN = 0x00000000ffffffff
 end
 
@@ -204,7 +220,7 @@ function flux_msg_get_userid(msg, userid)
     ccall((:flux_msg_get_userid, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{UInt32}), msg, userid)
 end
 
-@cenum __JL_Ctag_5::UInt32 begin
+@cenum __JL_Ctag_25::UInt32 begin
     FLUX_ROLE_NONE = 0
     FLUX_ROLE_OWNER = 1
     FLUX_ROLE_USER = 2
@@ -256,15 +272,15 @@ function flux_msg_get_seq(msg, seq)
     ccall((:flux_msg_get_seq, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{UInt32}), msg, seq)
 end
 
-function flux_msg_set_status(msg, status)
-    ccall((:flux_msg_set_status, libflux_core), Cint, (Ptr{flux_msg_t}, Cint), msg, status)
+function flux_msg_set_control(msg, type, status)
+    ccall((:flux_msg_set_control, libflux_core), Cint, (Ptr{flux_msg_t}, Cint, Cint), msg, type, status)
 end
 
-function flux_msg_get_status(msg, status)
-    ccall((:flux_msg_get_status, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}), msg, status)
+function flux_msg_get_control(msg, type, status)
+    ccall((:flux_msg_get_control, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}, Ptr{Cint}), msg, type, status)
 end
 
-@cenum __JL_Ctag_6::UInt32 begin
+@cenum __JL_Ctag_26::UInt32 begin
     FLUX_MATCHTAG_NONE = 0
 end
 
@@ -288,40 +304,52 @@ function flux_msg_fprint(f, msg)
     ccall((:flux_msg_fprint, libflux_core), Cvoid, (Ptr{Libc.FILE}, Ptr{flux_msg_t}), f, msg)
 end
 
+function flux_msg_fprint_ts(f, msg, timestamp)
+    ccall((:flux_msg_fprint_ts, libflux_core), Cvoid, (Ptr{Libc.FILE}, Ptr{flux_msg_t}, Cdouble), f, msg, timestamp)
+end
+
 function flux_msg_typestr(type)
     ccall((:flux_msg_typestr, libflux_core), Ptr{Cchar}, (Cint,), type)
 end
 
-function flux_msg_enable_route(msg)
-    ccall((:flux_msg_enable_route, libflux_core), Cint, (Ptr{flux_msg_t},), msg)
+function flux_msg_route_enable(msg)
+    ccall((:flux_msg_route_enable, libflux_core), Cvoid, (Ptr{flux_msg_t},), msg)
 end
 
-function flux_msg_clear_route(msg)
-    ccall((:flux_msg_clear_route, libflux_core), Cint, (Ptr{flux_msg_t},), msg)
+function flux_msg_route_disable(msg)
+    ccall((:flux_msg_route_disable, libflux_core), Cvoid, (Ptr{flux_msg_t},), msg)
 end
 
-function flux_msg_push_route(msg, id)
-    ccall((:flux_msg_push_route, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cchar}), msg, id)
+function flux_msg_route_clear(msg)
+    ccall((:flux_msg_route_clear, libflux_core), Cvoid, (Ptr{flux_msg_t},), msg)
 end
 
-function flux_msg_pop_route(msg, id)
-    ccall((:flux_msg_pop_route, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Ptr{Cchar}}), msg, id)
+function flux_msg_route_push(msg, id)
+    ccall((:flux_msg_route_push, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cchar}), msg, id)
 end
 
-function flux_msg_get_route_first(msg, id)
-    ccall((:flux_msg_get_route_first, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Ptr{Cchar}}), msg, id)
+function flux_msg_route_delete_last(msg)
+    ccall((:flux_msg_route_delete_last, libflux_core), Cint, (Ptr{flux_msg_t},), msg)
 end
 
-function flux_msg_get_route_last(msg, id)
-    ccall((:flux_msg_get_route_last, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Ptr{Cchar}}), msg, id)
+function flux_msg_route_first(msg)
+    ccall((:flux_msg_route_first, libflux_core), Ptr{Cchar}, (Ptr{flux_msg_t},), msg)
 end
 
-function flux_msg_get_route_count(msg)
-    ccall((:flux_msg_get_route_count, libflux_core), Cint, (Ptr{flux_msg_t},), msg)
+function flux_msg_route_last(msg)
+    ccall((:flux_msg_route_last, libflux_core), Ptr{Cchar}, (Ptr{flux_msg_t},), msg)
 end
 
-function flux_msg_get_route_string(msg)
-    ccall((:flux_msg_get_route_string, libflux_core), Ptr{Cchar}, (Ptr{flux_msg_t},), msg)
+function flux_msg_route_count(msg)
+    ccall((:flux_msg_route_count, libflux_core), Cint, (Ptr{flux_msg_t},), msg)
+end
+
+function flux_msg_route_string(msg)
+    ccall((:flux_msg_route_string, libflux_core), Ptr{Cchar}, (Ptr{flux_msg_t},), msg)
+end
+
+function flux_msg_route_match_first(msg1, msg2)
+    ccall((:flux_msg_route_match_first, libflux_core), Bool, (Ptr{flux_msg_t}, Ptr{flux_msg_t}), msg1, msg2)
 end
 
 mutable struct flux_handle_struct end
@@ -335,26 +363,28 @@ struct flux_msgcounters_t
     response_rx::Cint
     event_tx::Cint
     event_rx::Cint
-    keepalive_tx::Cint
-    keepalive_rx::Cint
+    control_tx::Cint
+    control_rx::Cint
 end
 
-# typedef void ( * flux_fatal_f ) ( const char * msg , void * arg )
-const flux_fatal_f = Ptr{Cvoid}
+# typedef int ( * flux_comms_error_f ) ( flux_t * h , void * arg )
+const flux_comms_error_f = Ptr{Cvoid}
 
-@cenum __JL_Ctag_8::UInt32 begin
+@cenum __JL_Ctag_28::UInt32 begin
     FLUX_O_TRACE = 1
     FLUX_O_CLONE = 2
     FLUX_O_NONBLOCK = 4
     FLUX_O_MATCHDEBUG = 8
+    FLUX_O_TEST_NOSUB = 16
+    FLUX_O_RPCTRACK = 32
 end
 
-@cenum __JL_Ctag_9::UInt32 begin
+@cenum __JL_Ctag_29::UInt32 begin
     FLUX_RQ_HEAD = 1
     FLUX_RQ_TAIL = 2
 end
 
-@cenum __JL_Ctag_10::UInt32 begin
+@cenum __JL_Ctag_30::UInt32 begin
     FLUX_POLLIN = 1
     FLUX_POLLOUT = 2
     FLUX_POLLERR = 4
@@ -362,6 +392,10 @@ end
 
 function flux_open(uri, flags)
     ccall((:flux_open, libflux_core), Ptr{flux_t}, (Ptr{Cchar}, Cint), uri, flags)
+end
+
+function flux_open_ex(uri, flags, error)
+    ccall((:flux_open_ex, libflux_core), Ptr{flux_t}, (Ptr{Cchar}, Cint, Ptr{flux_error_t}), uri, flags, error)
 end
 
 function flux_close(h)
@@ -380,6 +414,10 @@ function flux_clone(orig)
     ccall((:flux_clone, libflux_core), Ptr{flux_t}, (Ptr{flux_t},), orig)
 end
 
+function flux_reconnect(h)
+    ccall((:flux_reconnect, libflux_core), Cint, (Ptr{flux_t},), h)
+end
+
 function flux_opt_set(h, option, val, len)
     ccall((:flux_opt_set, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cchar}, Ptr{Cvoid}, Csize_t), h, option, val, len)
 end
@@ -388,16 +426,8 @@ function flux_opt_get(h, option, val, len)
     ccall((:flux_opt_get, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cchar}, Ptr{Cvoid}, Csize_t), h, option, val, len)
 end
 
-function flux_fatal_set(h, fun, arg)
-    ccall((:flux_fatal_set, libflux_core), Cvoid, (Ptr{flux_t}, flux_fatal_f, Ptr{Cvoid}), h, fun, arg)
-end
-
-function flux_fatal_error(h, fun, msg)
-    ccall((:flux_fatal_error, libflux_core), Cvoid, (Ptr{flux_t}, Ptr{Cchar}, Ptr{Cchar}), h, fun, msg)
-end
-
-function flux_fatality(h)
-    ccall((:flux_fatality, libflux_core), Bool, (Ptr{flux_t},), h)
+function flux_comms_error_set(h, fun, arg)
+    ccall((:flux_comms_error_set, libflux_core), Cvoid, (Ptr{flux_t}, flux_comms_error_f, Ptr{Cvoid}), h, fun, arg)
 end
 
 function flux_aux_get(h, name)
@@ -444,24 +474,12 @@ function flux_requeue(h, msg, flags)
     ccall((:flux_requeue, libflux_core), Cint, (Ptr{flux_t}, Ptr{flux_msg_t}, Cint), h, msg, flags)
 end
 
-function flux_requeue_nocopy(h, msg, flags)
-    ccall((:flux_requeue_nocopy, libflux_core), Cint, (Ptr{flux_t}, Ptr{flux_msg_t}, Cint), h, msg, flags)
-end
-
 function flux_pollevents(h)
     ccall((:flux_pollevents, libflux_core), Cint, (Ptr{flux_t},), h)
 end
 
 function flux_pollfd(h)
     ccall((:flux_pollfd, libflux_core), Cint, (Ptr{flux_t},), h)
-end
-
-function flux_event_subscribe(h, topic)
-    ccall((:flux_event_subscribe, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cchar}), h, topic)
-end
-
-function flux_event_unsubscribe(h, topic)
-    ccall((:flux_event_unsubscribe, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cchar}), h, topic)
 end
 
 function flux_get_msgcounters(h, mcs)
@@ -568,16 +586,16 @@ mutable struct flux_reactor end
 
 const flux_reactor_t = flux_reactor
 
-@cenum __JL_Ctag_11::UInt32 begin
+@cenum __JL_Ctag_31::UInt32 begin
     FLUX_REACTOR_NOWAIT = 1
     FLUX_REACTOR_ONCE = 2
 end
 
-@cenum __JL_Ctag_12::UInt32 begin
+@cenum __JL_Ctag_32::UInt32 begin
     FLUX_REACTOR_SIGCHLD = 1
 end
 
-@cenum __JL_Ctag_13::UInt32 begin
+@cenum __JL_Ctag_33::UInt32 begin
     FLUX_WATCHER_LINE_BUFFER = 1
 end
 
@@ -692,20 +710,16 @@ function flux_buffer_write_watcher_is_closed(w, close_err)
     ccall((:flux_buffer_write_watcher_is_closed, libflux_core), Cint, (Ptr{flux_watcher_t}, Ptr{Cint}), w, close_err)
 end
 
-function flux_zmq_watcher_create(r, zsock, events, cb, arg)
-    ccall((:flux_zmq_watcher_create, libflux_core), Ptr{flux_watcher_t}, (Ptr{flux_reactor_t}, Ptr{Cvoid}, Cint, flux_watcher_f, Ptr{Cvoid}), r, zsock, events, cb, arg)
-end
-
-function flux_zmq_watcher_get_zsock(w)
-    ccall((:flux_zmq_watcher_get_zsock, libflux_core), Ptr{Cvoid}, (Ptr{flux_watcher_t},), w)
-end
-
 function flux_timer_watcher_create(r, after, repeat, cb, arg)
     ccall((:flux_timer_watcher_create, libflux_core), Ptr{flux_watcher_t}, (Ptr{flux_reactor_t}, Cdouble, Cdouble, flux_watcher_f, Ptr{Cvoid}), r, after, repeat, cb, arg)
 end
 
 function flux_timer_watcher_reset(w, after, repeat)
     ccall((:flux_timer_watcher_reset, libflux_core), Cvoid, (Ptr{flux_watcher_t}, Cdouble, Cdouble), w, after, repeat)
+end
+
+function flux_timer_watcher_again(w)
+    ccall((:flux_timer_watcher_again, libflux_core), Cvoid, (Ptr{flux_watcher_t},), w)
 end
 
 # typedef double ( * flux_reschedule_f ) ( flux_watcher_t * w , double now , void * arg )
@@ -827,7 +841,7 @@ function flux_dispatch_requeue(h)
     ccall((:flux_dispatch_requeue, libflux_core), Cint, (Ptr{flux_t},), h)
 end
 
-# typedef flux_t * ( connector_init_f ) ( const char * uri , int flags )
+# typedef flux_t * ( connector_init_f ) ( const char * uri , int flags , flux_error_t * errp )
 const connector_init_f = Cvoid
 
 struct flux_handle_ops
@@ -837,8 +851,7 @@ struct flux_handle_ops
     pollevents::Ptr{Cvoid}
     send::Ptr{Cvoid}
     recv::Ptr{Cvoid}
-    event_subscribe::Ptr{Cvoid}
-    event_unsubscribe::Ptr{Cvoid}
+    reconnect::Ptr{Cvoid}
     impl_destroy::Ptr{Cvoid}
 end
 
@@ -848,6 +861,56 @@ end
 
 function flux_handle_destroy(hp)
     ccall((:flux_handle_destroy, libflux_core), Cvoid, (Ptr{flux_t},), hp)
+end
+
+mutable struct flux_msglist end
+
+function flux_msglist_create()
+    ccall((:flux_msglist_create, libflux_core), Ptr{flux_msglist}, ())
+end
+
+function flux_msglist_destroy(l)
+    ccall((:flux_msglist_destroy, libflux_core), Cvoid, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_push(l, msg)
+    ccall((:flux_msglist_push, libflux_core), Cint, (Ptr{flux_msglist}, Ptr{flux_msg_t}), l, msg)
+end
+
+function flux_msglist_append(l, msg)
+    ccall((:flux_msglist_append, libflux_core), Cint, (Ptr{flux_msglist}, Ptr{flux_msg_t}), l, msg)
+end
+
+function flux_msglist_delete(l)
+    ccall((:flux_msglist_delete, libflux_core), Cvoid, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_pop(l)
+    ccall((:flux_msglist_pop, libflux_core), Ptr{flux_msg_t}, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_first(l)
+    ccall((:flux_msglist_first, libflux_core), Ptr{flux_msg_t}, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_next(l)
+    ccall((:flux_msglist_next, libflux_core), Ptr{flux_msg_t}, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_last(l)
+    ccall((:flux_msglist_last, libflux_core), Ptr{flux_msg_t}, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_count(l)
+    ccall((:flux_msglist_count, libflux_core), Cint, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_pollevents(l)
+    ccall((:flux_msglist_pollevents, libflux_core), Cint, (Ptr{flux_msglist},), l)
+end
+
+function flux_msglist_pollfd(l)
+    ccall((:flux_msglist_pollfd, libflux_core), Cint, (Ptr{flux_msglist},), l)
 end
 
 function flux_request_decode(msg, topic, s)
@@ -906,12 +969,12 @@ function flux_respond_error(h, request, errnum, errstr)
     ccall((:flux_respond_error, libflux_core), Cint, (Ptr{flux_t}, Ptr{flux_msg_t}, Cint, Ptr{Cchar}), h, request, errnum, errstr)
 end
 
-function flux_keepalive_encode(errnum, status)
-    ccall((:flux_keepalive_encode, libflux_core), Ptr{flux_msg_t}, (Cint, Cint), errnum, status)
+function flux_control_encode(type, status)
+    ccall((:flux_control_encode, libflux_core), Ptr{flux_msg_t}, (Cint, Cint), type, status)
 end
 
-function flux_keepalive_decode(msg, errnum, status)
-    ccall((:flux_keepalive_decode, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}, Ptr{Cint}), msg, errnum, status)
+function flux_control_decode(msg, type, status)
+    ccall((:flux_control_decode, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}, Ptr{Cint}), msg, type, status)
 end
 
 # typedef void ( * flux_log_f ) ( const char * buf , int len , void * arg )
@@ -928,14 +991,6 @@ end
 function flux_log_set_redirect(h, fun, arg)
     ccall((:flux_log_set_redirect, libflux_core), Cvoid, (Ptr{flux_t}, flux_log_f, Ptr{Cvoid}), h, fun, arg)
 end
-
-function flux_strerror(errnum)
-    ccall((:flux_strerror, libflux_core), Ptr{Cchar}, (Cint,), errnum)
-end
-
-mutable struct flux_future end
-
-const flux_future_t = flux_future
 
 # typedef void ( * flux_continuation_f ) ( flux_future_t * f , void * arg )
 const flux_continuation_f = Ptr{Cvoid}
@@ -993,14 +1048,6 @@ end
 
 function flux_future_fatal_error(f, errnum, errstr)
     ccall((:flux_future_fatal_error, libflux_core), Cvoid, (Ptr{flux_future_t}, Cint, Ptr{Cchar}), f, errnum, errstr)
-end
-
-function flux_future_has_error(f)
-    ccall((:flux_future_has_error, libflux_core), Bool, (Ptr{flux_future_t},), f)
-end
-
-function flux_future_error_string(f)
-    ccall((:flux_future_error_string, libflux_core), Ptr{Cchar}, (Ptr{flux_future_t},), f)
 end
 
 function flux_future_set_flux(f, h)
@@ -1067,7 +1114,11 @@ function flux_future_continue_error(prev, errnum, errstr)
     ccall((:flux_future_continue_error, libflux_core), Cvoid, (Ptr{flux_future_t}, Cint, Ptr{Cchar}), prev, errnum, errstr)
 end
 
-@cenum __JL_Ctag_14::UInt32 begin
+function flux_future_fulfill_next(prev, result, free_fn)
+    ccall((:flux_future_fulfill_next, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Cvoid}, flux_free_f), prev, result, free_fn)
+end
+
+@cenum __JL_Ctag_34::UInt32 begin
     FLUX_RPC_NORESPONSE = 1
     FLUX_RPC_STREAMING = 2
 end
@@ -1096,12 +1147,32 @@ function flux_rpc_get_matchtag(f)
     ccall((:flux_rpc_get_matchtag, libflux_core), UInt32, (Ptr{flux_future_t},), f)
 end
 
+function flux_rpc_get_nodeid(f)
+    ccall((:flux_rpc_get_nodeid, libflux_core), UInt32, (Ptr{flux_future_t},), f)
+end
+
 function flux_panic(h, nodeid, flags, reason)
     ccall((:flux_panic, libflux_core), Cint, (Ptr{flux_t}, UInt32, Cint, Ptr{Cchar}), h, nodeid, flags, reason)
 end
 
 @cenum event_flags::UInt32 begin
     FLUX_EVENT_PRIVATE = 1
+end
+
+function flux_event_subscribe(h, topic)
+    ccall((:flux_event_subscribe, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cchar}), h, topic)
+end
+
+function flux_event_unsubscribe(h, topic)
+    ccall((:flux_event_unsubscribe, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cchar}), h, topic)
+end
+
+function flux_event_subscribe_ex(h, topic, flags)
+    ccall((:flux_event_subscribe_ex, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Ptr{Cchar}, Cint), h, topic, flags)
+end
+
+function flux_event_unsubscribe_ex(h, topic, flags)
+    ccall((:flux_event_unsubscribe_ex, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Ptr{Cchar}, Cint), h, topic, flags)
 end
 
 function flux_event_decode(msg, topic, s)
@@ -1132,12 +1203,11 @@ function flux_event_publish_get_seq(f, seq)
     ccall((:flux_event_publish_get_seq, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Cint}), f, seq)
 end
 
-@cenum __JL_Ctag_15::UInt32 begin
+@cenum __JL_Ctag_35::UInt32 begin
     FLUX_MODSTATE_INIT = 0
-    FLUX_MODSTATE_SLEEPING = 1
-    FLUX_MODSTATE_RUNNING = 2
-    FLUX_MODSTATE_FINALIZING = 3
-    FLUX_MODSTATE_EXITED = 4
+    FLUX_MODSTATE_RUNNING = 1
+    FLUX_MODSTATE_FINALIZING = 2
+    FLUX_MODSTATE_EXITED = 3
 end
 
 # typedef int ( mod_main_f ) ( flux_t * h , int argc , char * argv [ ] )
@@ -1182,6 +1252,22 @@ function flux_get_size(h, size)
     ccall((:flux_get_size, libflux_core), Cint, (Ptr{flux_t}, Ptr{UInt32}), h, size)
 end
 
+function flux_get_hostbyrank(h, rank)
+    ccall((:flux_get_hostbyrank, libflux_core), Ptr{Cchar}, (Ptr{flux_t}, UInt32), h, rank)
+end
+
+function flux_get_rankbyhost(h, host)
+    ccall((:flux_get_rankbyhost, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cchar}), h, host)
+end
+
+function flux_hostmap_lookup(h, targets, errp)
+    ccall((:flux_hostmap_lookup, libflux_core), Ptr{Cchar}, (Ptr{flux_t}, Ptr{Cchar}, Ptr{flux_error_t}), h, targets, errp)
+end
+
+function flux_get_instance_starttime(h, starttime)
+    ccall((:flux_get_instance_starttime, libflux_core), Cint, (Ptr{flux_t}, Ptr{Cdouble}), h, starttime)
+end
+
 @cenum flux_conf_flags::UInt32 begin
     FLUX_CONF_INSTALLED = 0
     FLUX_CONF_INTREE = 1
@@ -1195,12 +1281,6 @@ end
 mutable struct flux_conf end
 
 const flux_conf_t = flux_conf
-
-struct flux_conf_error_t
-    filename::NTuple{80, Cchar}
-    lineno::Cint
-    errbuf::NTuple{160, Cchar}
-end
 
 function flux_conf_create()
     ccall((:flux_conf_create, libflux_core), Ptr{flux_conf_t}, ())
@@ -1223,7 +1303,7 @@ function flux_conf_reload_decode(msg, conf)
 end
 
 function flux_conf_parse(path, error)
-    ccall((:flux_conf_parse, libflux_core), Ptr{flux_conf_t}, (Ptr{Cchar}, Ptr{flux_conf_error_t}), path, error)
+    ccall((:flux_conf_parse, libflux_core), Ptr{flux_conf_t}, (Ptr{Cchar}, Ptr{flux_error_t}), path, error)
 end
 
 function flux_get_conf(h)
@@ -1232,35 +1312,6 @@ end
 
 function flux_set_conf(h, conf)
     ccall((:flux_set_conf, libflux_core), Cint, (Ptr{flux_t}, Ptr{flux_conf_t}), h, conf)
-end
-
-function flux_heartbeat_encode(epoch)
-    ccall((:flux_heartbeat_encode, libflux_core), Ptr{flux_msg_t}, (Cint,), epoch)
-end
-
-function flux_heartbeat_decode(msg, epoch)
-    ccall((:flux_heartbeat_decode, libflux_core), Cint, (Ptr{flux_msg_t}, Ptr{Cint}), msg, epoch)
-end
-
-@cenum __JL_Ctag_17::UInt32 begin
-    CONTENT_FLAG_CACHE_BYPASS = 1
-    CONTENT_FLAG_UPSTREAM = 2
-end
-
-function flux_content_load(h, blobref, flags)
-    ccall((:flux_content_load, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Ptr{Cchar}, Cint), h, blobref, flags)
-end
-
-function flux_content_load_get(f, buf, len)
-    ccall((:flux_content_load_get, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Ptr{Cvoid}}, Ptr{Cint}), f, buf, len)
-end
-
-function flux_content_store(h, buf, len, flags)
-    ccall((:flux_content_store, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Ptr{Cvoid}, Cint, Cint), h, buf, len, flags)
-end
-
-function flux_content_store_get(f, blobref)
-    ccall((:flux_content_store_get, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Ptr{Cchar}}), f, blobref)
 end
 
 function flux_barrier(h, name, nprocs)
@@ -1283,7 +1334,7 @@ function flux_core_version(major, minor, patch)
     ccall((:flux_core_version, libflux_core), Cint, (Ptr{Cint}, Ptr{Cint}, Ptr{Cint}), major, minor, patch)
 end
 
-@cenum __JL_Ctag_18::UInt32 begin
+@cenum __JL_Ctag_36::UInt32 begin
     FLUX_PLUGIN_RTLD_LAZY = 1
     FLUX_PLUGIN_RTLD_NOW = 2
     FLUX_PLUGIN_RTLD_GLOBAL = 4
@@ -1338,6 +1389,10 @@ function flux_plugin_get_name(p)
     ccall((:flux_plugin_get_name, libflux_core), Ptr{Cchar}, (Ptr{flux_plugin_t},), p)
 end
 
+function flux_plugin_get_uuid(p)
+    ccall((:flux_plugin_get_uuid, libflux_core), Ptr{Cchar}, (Ptr{flux_plugin_t},), p)
+end
+
 function flux_plugin_add_handler(p, topic, cb, arg)
     ccall((:flux_plugin_add_handler, libflux_core), Cint, (Ptr{flux_plugin_t}, Ptr{Cchar}, flux_plugin_f, Ptr{Cvoid}), p, topic, cb, arg)
 end
@@ -1366,6 +1421,10 @@ function flux_plugin_aux_get(p, key)
     ccall((:flux_plugin_aux_get, libflux_core), Ptr{Cvoid}, (Ptr{flux_plugin_t}, Ptr{Cchar}), p, key)
 end
 
+function flux_plugin_aux_delete(p, val)
+    ccall((:flux_plugin_aux_delete, libflux_core), Cvoid, (Ptr{flux_plugin_t}, Ptr{Cvoid}), p, val)
+end
+
 function flux_plugin_set_conf(p, json_str)
     ccall((:flux_plugin_set_conf, libflux_core), Cint, (Ptr{flux_plugin_t}, Ptr{Cchar}), p, json_str)
 end
@@ -1374,7 +1433,7 @@ function flux_plugin_get_conf(p)
     ccall((:flux_plugin_get_conf, libflux_core), Ptr{Cchar}, (Ptr{flux_plugin_t},), p)
 end
 
-# no prototype is found for this function at plugin.h:128:20, please use with caution
+# no prototype is found for this function at plugin.h:133:20, please use with caution
 function flux_plugin_arg_create()
     ccall((:flux_plugin_arg_create, libflux_core), Ptr{flux_plugin_arg_t}, ())
 end
@@ -1387,10 +1446,10 @@ function flux_plugin_arg_strerror(args)
     ccall((:flux_plugin_arg_strerror, libflux_core), Ptr{Cchar}, (Ptr{flux_plugin_arg_t},), args)
 end
 
-@cenum __JL_Ctag_19::UInt32 begin
+@cenum __JL_Ctag_37::UInt32 begin
     FLUX_PLUGIN_ARG_IN = 0
     FLUX_PLUGIN_ARG_OUT = 1
-    FLUX_PLUGIN_ARG_UPDATE = 2
+    FLUX_PLUGIN_ARG_REPLACE = 2
 end
 
 function flux_plugin_arg_set(args, flags, json_str)
@@ -1407,6 +1466,50 @@ end
 
 function flux_plugin_load_dso(p, path)
     ccall((:flux_plugin_load_dso, libflux_core), Cint, (Ptr{flux_plugin_t}, Ptr{Cchar}), p, path)
+end
+
+function flux_sync_create(h, minimum)
+    ccall((:flux_sync_create, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Cdouble), h, minimum)
+end
+
+function flux_disconnect_match(msg1, msg2)
+    ccall((:flux_disconnect_match, libflux_core), Bool, (Ptr{flux_msg_t}, Ptr{flux_msg_t}), msg1, msg2)
+end
+
+function flux_msglist_disconnect(l, msg)
+    ccall((:flux_msglist_disconnect, libflux_core), Cint, (Ptr{flux_msglist}, Ptr{flux_msg_t}), l, msg)
+end
+
+function flux_cancel_match(msg1, msg2)
+    ccall((:flux_cancel_match, libflux_core), Bool, (Ptr{flux_msg_t}, Ptr{flux_msg_t}), msg1, msg2)
+end
+
+function flux_msglist_cancel(h, l, msg)
+    ccall((:flux_msglist_cancel, libflux_core), Cint, (Ptr{flux_t}, Ptr{flux_msglist}, Ptr{flux_msg_t}), h, l, msg)
+end
+
+function flux_stats_count(h, name, count)
+    ccall((:flux_stats_count, libflux_core), Cvoid, (Ptr{flux_t}, Ptr{Cchar}, Cssize_t), h, name, count)
+end
+
+function flux_stats_gauge_set(h, name, value)
+    ccall((:flux_stats_gauge_set, libflux_core), Cvoid, (Ptr{flux_t}, Ptr{Cchar}, Cssize_t), h, name, value)
+end
+
+function flux_stats_gauge_inc(h, name, inc)
+    ccall((:flux_stats_gauge_inc, libflux_core), Cvoid, (Ptr{flux_t}, Ptr{Cchar}, Cssize_t), h, name, inc)
+end
+
+function flux_stats_timing(h, name, ms)
+    ccall((:flux_stats_timing, libflux_core), Cvoid, (Ptr{flux_t}, Ptr{Cchar}, Cdouble), h, name, ms)
+end
+
+function flux_stats_set_period(h, period)
+    ccall((:flux_stats_set_period, libflux_core), Cvoid, (Ptr{flux_t}, Cdouble), h, period)
+end
+
+function flux_stats_enabled(h, metric)
+    ccall((:flux_stats_enabled, libflux_core), Bool, (Ptr{flux_t}, Ptr{Cchar}), h, metric)
 end
 
 mutable struct flux_kvsdir end
@@ -1576,6 +1679,7 @@ end
 @cenum kvs_commit_flags::UInt32 begin
     FLUX_KVS_NO_MERGE = 1
     FLUX_KVS_TXN_COMPACT = 2
+    FLUX_KVS_SYNC = 4
 end
 
 function flux_kvs_commit(h, ns, flags, txn)
@@ -1588,6 +1692,10 @@ end
 
 function flux_kvs_commit_get_treeobj(f, treeobj)
     ccall((:flux_kvs_commit_get_treeobj, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Ptr{Cchar}}), f, treeobj)
+end
+
+function flux_kvs_commit_get_rootref(f, rootref)
+    ccall((:flux_kvs_commit_get_rootref, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Ptr{Cchar}}), f, rootref)
 end
 
 function flux_kvs_commit_get_sequence(f, rootseq)
@@ -1618,6 +1726,10 @@ function flux_kvs_namespace_create(h, ns, owner, flags)
     ccall((:flux_kvs_namespace_create, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Ptr{Cchar}, UInt32, Cint), h, ns, owner, flags)
 end
 
+function flux_kvs_namespace_create_with(h, ns, rootref, owner, flags)
+    ccall((:flux_kvs_namespace_create_with, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Ptr{Cchar}, Ptr{Cchar}, UInt32, Cint), h, ns, rootref, owner, flags)
+end
+
 function flux_kvs_namespace_remove(h, ns)
     ccall((:flux_kvs_namespace_remove, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, Ptr{Cchar}), h, ns)
 end
@@ -1638,6 +1750,7 @@ end
     FLUX_JOB_PRE_SIGNED = 1
     FLUX_JOB_DEBUG = 2
     FLUX_JOB_WAITABLE = 4
+    FLUX_JOB_NOVALIDATE = 8
 end
 
 @cenum job_urgency::UInt32 begin
@@ -1653,10 +1766,6 @@ end
     FLUX_JOB_PRIORITY_MAX = 0x00000000ffffffff
 end
 
-@cenum __JL_Ctag_20::UInt64 begin
-    FLUX_JOBID_ANY = 0xffffffffffffffff
-end
-
 @cenum flux_job_state_t::UInt32 begin
     FLUX_JOB_STATE_NEW = 1
     FLUX_JOB_STATE_DEPEND = 2
@@ -1667,7 +1776,7 @@ end
     FLUX_JOB_STATE_INACTIVE = 64
 end
 
-@cenum __JL_Ctag_22::UInt32 begin
+@cenum __JL_Ctag_39::UInt32 begin
     FLUX_JOB_STATE_PENDING = 14
     FLUX_JOB_STATE_RUNNING = 48
     FLUX_JOB_STATE_ACTIVE = 62
@@ -1690,16 +1799,16 @@ function flux_job_id_encode(id, type, buf, bufsz)
     ccall((:flux_job_id_encode, libflux_core), Cint, (flux_jobid_t, Ptr{Cchar}, Ptr{Cchar}, Csize_t), id, type, buf, bufsz)
 end
 
-function flux_job_statetostr(state, single_char)
-    ccall((:flux_job_statetostr, libflux_core), Ptr{Cchar}, (flux_job_state_t, Bool), state, single_char)
+function flux_job_statetostr(state, fmt)
+    ccall((:flux_job_statetostr, libflux_core), Ptr{Cchar}, (flux_job_state_t, Ptr{Cchar}), state, fmt)
 end
 
 function flux_job_strtostate(s, state)
     ccall((:flux_job_strtostate, libflux_core), Cint, (Ptr{Cchar}, Ptr{flux_job_state_t}), s, state)
 end
 
-function flux_job_resulttostr(result, abbrev)
-    ccall((:flux_job_resulttostr, libflux_core), Ptr{Cchar}, (flux_job_result_t, Bool), result, abbrev)
+function flux_job_resulttostr(result, fmt)
+    ccall((:flux_job_resulttostr, libflux_core), Ptr{Cchar}, (flux_job_result_t, Ptr{Cchar}), result, fmt)
 end
 
 function flux_job_strtoresult(s, result)
@@ -1778,13 +1887,75 @@ function flux_job_event_watch_cancel(f)
     ccall((:flux_job_event_watch_cancel, libflux_core), Cint, (Ptr{flux_future_t},), f)
 end
 
+function flux_job_result(h, id, flags)
+    ccall((:flux_job_result, libflux_core), Ptr{flux_future_t}, (Ptr{flux_t}, flux_jobid_t, Cint), h, id, flags)
+end
+
+function flux_job_result_get(f, json_str)
+    ccall((:flux_job_result_get, libflux_core), Cint, (Ptr{flux_future_t}, Ptr{Ptr{Cchar}}), f, json_str)
+end
+
+mutable struct flux_jobspec1 end
+
+const flux_jobspec1_t = flux_jobspec1
+
+const flux_jobspec1_error_t = flux_error_t
+
+function flux_jobspec1_attr_del(jobspec, path)
+    ccall((:flux_jobspec1_attr_del, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{Cchar}), jobspec, path)
+end
+
+function flux_jobspec1_attr_check(jobspec, error)
+    ccall((:flux_jobspec1_attr_check, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{flux_jobspec1_error_t}), jobspec, error)
+end
+
+function flux_jobspec1_check(jobspec, error)
+    ccall((:flux_jobspec1_check, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{flux_jobspec1_error_t}), jobspec, error)
+end
+
+function flux_jobspec1_unsetenv(jobspec, name)
+    ccall((:flux_jobspec1_unsetenv, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{Cchar}), jobspec, name)
+end
+
+function flux_jobspec1_setenv(jobspec, name, value, overwrite)
+    ccall((:flux_jobspec1_setenv, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{Cchar}, Ptr{Cchar}, Cint), jobspec, name, value, overwrite)
+end
+
+function flux_jobspec1_set_stdin(jobspec, path)
+    ccall((:flux_jobspec1_set_stdin, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{Cchar}), jobspec, path)
+end
+
+function flux_jobspec1_set_stdout(jobspec, path)
+    ccall((:flux_jobspec1_set_stdout, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{Cchar}), jobspec, path)
+end
+
+function flux_jobspec1_set_stderr(jobspec, path)
+    ccall((:flux_jobspec1_set_stderr, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{Cchar}), jobspec, path)
+end
+
+function flux_jobspec1_set_cwd(jobspec, cwd)
+    ccall((:flux_jobspec1_set_cwd, libflux_core), Cint, (Ptr{flux_jobspec1_t}, Ptr{Cchar}), jobspec, cwd)
+end
+
+function flux_jobspec1_encode(jobspec, flags)
+    ccall((:flux_jobspec1_encode, libflux_core), Ptr{Cchar}, (Ptr{flux_jobspec1_t}, Csize_t), jobspec, flags)
+end
+
+function flux_jobspec1_decode(s, error)
+    ccall((:flux_jobspec1_decode, libflux_core), Ptr{flux_jobspec1_t}, (Ptr{Cchar}, Ptr{flux_jobspec1_error_t}), s, error)
+end
+
+function flux_jobspec1_from_command(argc, argv, env, ntasks, cores_per_task, gpus_per_task, nnodes, duration)
+    ccall((:flux_jobspec1_from_command, libflux_core), Ptr{flux_jobspec1_t}, (Cint, Ptr{Ptr{Cchar}}, Ptr{Ptr{Cchar}}, Cint, Cint, Cint, Cint, Cdouble), argc, argv, env, ntasks, cores_per_task, gpus_per_task, nnodes, duration)
+end
+
+function flux_jobspec1_destroy(jobspec)
+    ccall((:flux_jobspec1_destroy, libflux_core), Cvoid, (Ptr{flux_jobspec1_t},), jobspec)
+end
+
 mutable struct flux_command end
 
 const flux_cmd_t = flux_command
-
-mutable struct flux_subprocess end
-
-const flux_subprocess_t = flux_subprocess
 
 mutable struct flux_subprocess_server end
 
@@ -1798,7 +1969,7 @@ const flux_subprocess_server_t = flux_subprocess_server
     FLUX_SUBPROCESS_FAILED = 4
 end
 
-@cenum __JL_Ctag_25::UInt32 begin
+@cenum __JL_Ctag_42::UInt32 begin
     FLUX_SUBPROCESS_FLAGS_STDIO_FALLTHROUGH = 1
     FLUX_SUBPROCESS_FLAGS_SETPGRP = 2
 end
@@ -1830,8 +2001,15 @@ struct flux_subprocess_hooks_t
     post_fork_arg::Ptr{Cvoid}
 end
 
-function flux_subprocess_server_start(h, prefix, local_uri, rank)
-    ccall((:flux_subprocess_server_start, libflux_core), Ptr{flux_subprocess_server_t}, (Ptr{flux_t}, Ptr{Cchar}, Ptr{Cchar}, UInt32), h, prefix, local_uri, rank)
+function flux_subprocess_server_start(h, local_uri, rank)
+    ccall((:flux_subprocess_server_start, libflux_core), Ptr{flux_subprocess_server_t}, (Ptr{flux_t}, Ptr{Cchar}, UInt32), h, local_uri, rank)
+end
+
+# typedef int ( * flux_subprocess_server_auth_f ) ( const flux_msg_t * msg , void * arg )
+const flux_subprocess_server_auth_f = Ptr{Cvoid}
+
+function flux_subprocess_server_set_auth_cb(s, fn, arg)
+    ccall((:flux_subprocess_server_set_auth_cb, libflux_core), Cvoid, (Ptr{flux_subprocess_server_t}, flux_subprocess_server_auth_f, Ptr{Cvoid}), s, fn, arg)
 end
 
 function flux_subprocess_server_stop(s)
@@ -1974,10 +2152,6 @@ function flux_subprocess_ref(p)
     ccall((:flux_subprocess_ref, libflux_core), Cvoid, (Ptr{flux_subprocess_t},), p)
 end
 
-function flux_subprocess_unref(p)
-    ccall((:flux_subprocess_unref, libflux_core), Cvoid, (Ptr{flux_subprocess_t},), p)
-end
-
 function flux_subprocess_state(p)
     ccall((:flux_subprocess_state, libflux_core), flux_subprocess_state_t, (Ptr{flux_subprocess_t},), p)
 end
@@ -2030,19 +2204,23 @@ const FLUX_OPT_TESTING_USERID = "flux::testing_userid"
 
 const FLUX_OPT_TESTING_ROLEMASK = "flux::testing_rolemask"
 
+# const FLUX_MSGHANDLER_TABLE_END = {0, NULL, NULL, 0}
+
 const FLUX_MAX_LOGBUF = 2048
 
-const FLUX_CORE_VERSION_STRING = "0.23.0"
+const FLUX_CORE_VERSION_STRING = "0.42.0"
 
 const FLUX_CORE_VERSION_MAJOR = 0
 
-const FLUX_CORE_VERSION_MINOR = 23
+const FLUX_CORE_VERSION_MINOR = 42
 
 const FLUX_CORE_VERSION_PATCH = 0
 
 const FLUX_CORE_VERSION_HEX = (FLUX_CORE_VERSION_MAJOR << 16 | FLUX_CORE_VERSION_MINOR << 8) | FLUX_CORE_VERSION_PATCH << 0
 
 const KVS_PRIMARY_NAMESPACE = "primary"
+
+const FLUX_JOBID_ANY = 0xffffffffffffffff
 
 const FLUX_JOB_NR_STATES = 7
 
