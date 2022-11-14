@@ -10,7 +10,8 @@ isdir(header_dir) || error("$header_dir does not exist")
 const FLUX_INCLUDE = normpath(header_dir)
 const FLUX_DIR = joinpath(FLUX_INCLUDE, "flux")
 
-args = ["-I$FLUX_INCLUDE"]
+args = get_default_args()  # Note you must call this function firstly and then append your own flags
+push!(args, "-I$FLUX_INCLUDE")
 
 options = load_options(joinpath(@__DIR__, "wrap.toml"))
 

@@ -4,8 +4,6 @@ using JSON3
 
 include("api.jl")
 
-export Flux
-
 function version()
     major = Ref{Cint}()
     minor = Ref{Cint}()
@@ -15,6 +13,17 @@ function version()
     Base.VersionNumber(major[], minor[], patch[])
 end
 
+function __init__()
+    api_version = VersionNumber(API.FLUX_CORE_VERSION_MAJOR,
+                                API.FLUX_CORE_VERSION_MINOR,
+                                API.FLUX_CORE_VERSION_PATCH)
+
+    if version() < api_version
+        @warn "The version of Flux is mismatched" api_version version()
+    end
+end
+
+export Flux
 mutable struct Flux
     handle::Ptr{API.flux_t}
 

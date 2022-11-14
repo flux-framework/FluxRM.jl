@@ -2,6 +2,10 @@ using CEnum
 
 mutable struct hostlist end
 
+function hostlist_count(hl)
+    ccall((:hostlist_count, libflux_hostlist), Cint, (Ptr{hostlist},), hl)
+end
+
 function hostlist_create()
     ccall((:hostlist_create, libflux_hostlist), Ptr{hostlist}, ())
 end
@@ -40,10 +44,6 @@ end
 
 function hostlist_delete(hl, hosts)
     ccall((:hostlist_delete, libflux_hostlist), Cint, (Ptr{hostlist}, Ptr{Cchar}), hl, hosts)
-end
-
-function hostlist_count(hl)
-    ccall((:hostlist_count, libflux_hostlist), Cint, (Ptr{hostlist},), hl)
 end
 
 function hostlist_sort(hl)
