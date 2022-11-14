@@ -1,6 +1,7 @@
 const alive_futures = IdDict{Any, Nothing}()
 
 function callback(fut::Ptr{API.flux_future_t}, arg::Ptr{Cvoid})
+    @info "callback" fut arg
     future = Base.unsafe_pointer_to_objref(arg)::Future
     delete!(alive_futures, future)
     @assert fut == future.handle
@@ -15,6 +16,7 @@ end
 
 function default_callback(future)
     err = API.flux_future_get(future, C_NULL)
+    @info "default callback" err
     if err == -1
         errno = Libc.errno()
         future.success = false
@@ -36,7 +38,7 @@ mutable struct Future
         this = new(handle, IdDict{Any, Nothing}(), nothing, nothing, callback)
         alive_futures[this] = nothing
         API.flux_future_then(this,
-            -1.0,
+            0.4,
             @cfunction(callback, Cvoid, (Ptr{API.flux_future_t}, Ptr{Cvoid})),
             Base.pointer_from_objref(this))
         return this

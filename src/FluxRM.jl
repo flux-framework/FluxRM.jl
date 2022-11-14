@@ -47,12 +47,13 @@ outstanding events, false if there are some events that couldn't
 be processed.
 """
 function progress(reactor)
-    rc = API.flux_reactor_run(reactor, API.FLUX_REACTOR_NOWAIT)
-    rc == 0 && return true # No more events
+    @show rc = API.flux_reactor_run(reactor, API.FLUX_REACTOR_NOWAIT)
+    rc >= 0 && return true # No more events
     if rc < 0
-        errno = Libc.errno()
+        @show errno = Libc.errno()
         if errno == Libc.EWOULDBLOCK || errno == Libc.EAGAIN
-            return false
+            return progress(reactor)
+            # return false
         end
         systemerror("flux_reactor_run", errno)
     end
@@ -60,9 +61,9 @@ function progress(reactor)
 end
 
 function Base.wait(flux::Flux)
-    while true
+        @info "Sleeping on FD" exception=(ErrorException(""),backtrace())
         poll_fd(flux.fd, writable=true, readable=true)
-        events = API.flux_pollevents(flux)
+        @show events = API.flux_pollevents(flux)
         if events & API.FLUX_POLLERR != 0
             throw(FluxError("FLUX_POLLERR"))
         end
@@ -74,8 +75,10 @@ function Base.wait(flux::Flux)
             end
             GC.safepoint()
             yield()
+            return
         end
-    end
+        @warn "Some events" events
+        return
 end
 
 function Flux(uri = nothing; flags = 0)
